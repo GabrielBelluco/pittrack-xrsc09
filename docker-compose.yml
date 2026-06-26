@@ -1,0 +1,110 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: pittrack-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pittrack-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pittrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pittrack}
+      POSTGRES_DB: ${POSTGRES_DB:-pittrack}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  backend:
+    build:
+      context: ./backend
+    container_name: pittrack-backend
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
+      REDIS_NOTIFICATIONS_CHANNEL: ${REDIS_NOTIFICATIONS_CHANNEL:-live-notifications}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pittrack-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    depends_on:
+      - backend
+
+  diagnostic-worker:
+    build:
+      context: ./backend
+    container_name: pittrack-diagnostic-worker
+    command: ["npm", "run", "worker:diagnostic"]
+    environment:
+      SERVICE_NAME: diagnostic-worker
+      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
+    depends_on:
+      - postgres
+      - redis
+
+  parts-worker:
+    build:
+      context: ./backend
+    container_name: pittrack-parts-worker
+    command: ["npm", "run", "worker:parts"]
+    environment:
+      SERVICE_NAME: parts-worker
+      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
+    depends_on:
+      - postgres
+      - redis
+
+  repair-worker:
+    build:
+      context: ./backend
+    container_name: pittrack-repair-worker
+    command: ["npm", "run", "worker:repair"]
+    environment:
+      SERVICE_NAME: repair-worker
+      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
+    depends_on:
+      - postgres
+      - redis
+
+  notification-worker:
+    build:
+      context: ./backend
+    container_name: pittrack-notification-worker
+    command: ["npm", "run", "worker:notification"]
+    environment:
+      SERVICE_NAME: notification-worker
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
+      REDIS_NOTIFICATIONS_CHANNEL: ${REDIS_NOTIFICATIONS_CHANNEL:-live-notifications}
+    depends_on:
+      - redis
+
+volumes:
+  postgres-data:
+  redis-data:

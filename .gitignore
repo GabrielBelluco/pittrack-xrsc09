@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log*
+.env
+.DS_Store
+dist/
+build/
+coverage/
+.idea/
+.vscode/
+.docker-temp/
+postgres-data/
+redis-data/
