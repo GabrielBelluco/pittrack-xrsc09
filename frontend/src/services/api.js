@@ -1,11 +1,14 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 async function request(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
+    headers: isFormData
+      ? options.headers
+      : {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        },
     ...options
   });
 
@@ -66,6 +69,18 @@ export function approveBudget(orderId) {
   });
 }
 
+export function updateOrderStatus(orderId, status, note, eventType) {
+  return request(`/orders/${orderId}/status`, {
+    method: 'POST',
+    body: JSON.stringify({
+      status,
+      note,
+      eventType,
+      createdBy: 'oficina'
+    })
+  });
+}
+
 export function addPart(orderId) {
   return request(`/orders/${orderId}/parts`, {
     method: 'POST',
@@ -76,14 +91,40 @@ export function addPart(orderId) {
   });
 }
 
-export function addVideo(orderId) {
-  return request(`/orders/${orderId}/videos`, {
+export function replacePart(orderId, partId) {
+  return request(`/orders/${orderId}/parts/${partId}/replace`, {
     method: 'POST',
     body: JSON.stringify({
-      step: 'Diagnóstico',
-      type: 'video',
-      url: 'https://example.com/videos/diagnostico-freio.mp4',
-      description: 'Registro do ruído identificado durante o teste de frenagem.'
+      description: 'Peça substituída pela oficina durante o reparo.',
+      createdBy: 'oficina'
     })
+  });
+}
+
+export function uploadMedia(orderId, { file, step, description }) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('step', step);
+  formData.append('description', description || '');
+
+  return request(`/orders/${orderId}/media`, {
+    method: 'POST',
+    body: formData
+  });
+}
+
+export function startLive(orderId) {
+  return request(`/orders/${orderId}/live/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      startedBy: 'oficina'
+    })
+  });
+}
+
+export function endLive(orderId) {
+  return request(`/orders/${orderId}/live/end`, {
+    method: 'POST',
+    body: JSON.stringify({})
   });
 }

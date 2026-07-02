@@ -29,7 +29,8 @@ docker compose up --build
 
 ## Endereços
 
-- Frontend: http://localhost:5173
+- Tela da oficina: http://localhost:5173/oficina
+- Tela do cliente: http://localhost:5173/cliente/ID_DA_ORDEM
 - API: http://localhost:3001
 - Health check: http://localhost:3001/health
 - PostgreSQL: localhost:5432
@@ -75,12 +76,33 @@ curl -X POST http://localhost:3001/orders/1/parts \
   -d "{\"name\":\"Pastilha de freio\",\"quantity\":1}"
 ```
 
-Registrar vídeo:
+Enviar foto ou vídeo real:
 
 ```bash
-curl -X POST http://localhost:3001/orders/1/videos \
+curl -X POST http://localhost:3001/orders/1/media \
+  -F "step=Diagnóstico" \
+  -F "description=Ruído identificado" \
+  -F "file=@./video-demo.mp4"
+```
+
+Atualizar uma etapa manualmente:
+
+```bash
+curl -X POST http://localhost:3001/orders/1/status \
   -H "Content-Type: application/json" \
-  -d "{\"step\":\"Diagnóstico\",\"type\":\"video\",\"url\":\"https://example.com/video.mp4\",\"description\":\"Ruído identificado\"}"
+  -d "{\"status\":\"Em Diagnóstico\",\"note\":\"Diagnóstico iniciado pela oficina\",\"eventType\":\"DIAGNOSIS_STARTED\"}"
+```
+
+Iniciar e encerrar uma live:
+
+```bash
+curl -X POST http://localhost:3001/orders/1/live/start \
+  -H "Content-Type: application/json" \
+  -d "{\"startedBy\":\"oficina\"}"
+
+curl -X POST http://localhost:3001/orders/1/live/end \
+  -H "Content-Type: application/json" \
+  -d "{}"
 ```
 
 ## Logs úteis
@@ -112,13 +134,59 @@ docker compose exec redis redis-cli SUBSCRIBE live-notifications
 ## Roteiro de demonstração em sala
 
 1. Subir o ambiente com `docker compose up --build`.
-2. Abrir http://localhost:5173.
+2. Abrir http://localhost:5173/oficina.
 3. Abrir os logs dos workers em outro terminal.
 4. Clicar em `Criar ordem exemplo`.
-5. Mostrar no log o `SERVICE_ORDER_CREATED` entrando no Redis Streams.
-6. Mostrar o `diagnostic-worker` iniciando e concluindo o diagnóstico.
-7. Clicar em `Gerar orçamento` e depois `Aprovar`.
-8. Mostrar o `repair-worker` executando reparo, testes finais e finalização.
-9. Clicar em `Registrar peça` para acionar o `parts-worker`.
-10. Clicar em `Registrar vídeo` para demonstrar mídia por etapa.
-11. Apontar no painel de eventos que o frontend não consulta repetidamente a API para notificações: ele recebe via Socket.IO após Pub/Sub.
+5. Abrir a tela do cliente pelo botão `Visão do cliente`.
+6. Mostrar no log o `SERVICE_ORDER_CREATED` entrando no Redis Streams.
+7. Mostrar o `diagnostic-worker` recebendo a ordem, mas aguardando ação manual.
+8. Clicar em `Iniciar diagnóstico` e `Finalizar diagnóstico`.
+9. Clicar em `Gerar orçamento` na oficina e `Aprovar` na tela do cliente.
+10. Mostrar o `repair-worker` consumindo `BUDGET_APPROVED`, mas aguardando início manual.
+11. Clicar em `Iniciar reparo`, `Solicitar peça` e mostrar o `parts-worker` gerando rastreio.
+12. Clicar em `Substituir peça`, `Iniciar testes`, `Finalizar serviço`.
+13. Enviar uma foto ou vídeo real em `Mídia real`.
+14. Iniciar uma live na oficina e entrar na live pela tela do cliente.
+15. Apontar no painel de eventos que o frontend recebe notificações via Socket.IO após Pub/Sub.
+
+## Dois computadores na mesma rede
+
+No computador servidor, descubra o IPv4:
+
+```powershell
+ipconfig
+```
+
+Exemplo: `192.168.0.25`.
+
+Edite `.env` antes de subir:
+
+```env
+VITE_API_URL=http://192.168.0.25:3001
+CORS_ORIGIN=http://localhost:5173,http://192.168.0.25:5173
+```
+
+Suba:
+
+```powershell
+docker compose up --build
+```
+
+No segundo computador, abra:
+
+```text
+http://192.168.0.25:5173/oficina
+http://192.168.0.25:5173/cliente/ID_DA_ORDEM
+```
+
+Se não abrir:
+
+- confirme que os dois computadores estão na mesma rede;
+- libere as portas `5173` e `3001` no firewall do Windows;
+- teste `http://192.168.0.25:3001/health` no segundo computador.
+
+Para live com câmera em dois computadores, o navegador pode bloquear câmera/microfone em HTTP. Opções:
+
+- testar a live em duas abas no mesmo computador usando `localhost`;
+- no Chrome, habilitar `chrome://flags/#unsafely-treat-insecure-origin-as-secure` e adicionar `http://192.168.0.25:5173`;
+- usar HTTPS/túnel local em uma versão futura.

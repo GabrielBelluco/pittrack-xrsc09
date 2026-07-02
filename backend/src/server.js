@@ -8,6 +8,7 @@ const { waitForDatabase } = require('./db');
 const ordersRouter = require('./routes/orders.routes');
 const { setupSockets } = require('./sockets');
 const { createRedisClient, NOTIFICATIONS_CHANNEL } = require('./config/redis');
+const { UPLOAD_DIR, ensureUploadDir } = require('./config/uploads');
 
 const PORT = Number(process.env.PORT || 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
@@ -18,6 +19,7 @@ function parseOrigins(value) {
 
 async function startServer() {
   await waitForDatabase();
+  ensureUploadDir();
 
   const app = express();
   const server = http.createServer(app);
@@ -29,6 +31,7 @@ async function startServer() {
 
   app.use(cors({ origin: parseOrigins(CORS_ORIGIN) }));
   app.use(express.json());
+  app.use('/uploads', express.static(UPLOAD_DIR));
 
   app.get('/health', (req, res) => {
     res.json({
