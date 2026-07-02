@@ -52,6 +52,14 @@ Listar ordens:
 curl http://localhost:3001/orders
 ```
 
+Iniciar diagnóstico:
+
+```bash
+curl -X POST http://localhost:3001/orders/1/status \
+  -H "Content-Type: application/json" \
+  -d "{\"status\":\"Em Diagnóstico\",\"note\":\"Diagnóstico iniciado pela oficina\",\"eventType\":\"DIAGNOSIS_STARTED\"}"
+```
+
 Gerar orçamento:
 
 ```bash
@@ -68,6 +76,14 @@ curl -X POST http://localhost:3001/orders/1/approve-budget \
   -d "{}"
 ```
 
+Iniciar reparo:
+
+```bash
+curl -X POST http://localhost:3001/orders/1/status \
+  -H "Content-Type: application/json" \
+  -d "{\"status\":\"Em Reparo\",\"note\":\"Reparo iniciado pela oficina\",\"eventType\":\"REPAIR_STARTED\"}"
+```
+
 Registrar peça:
 
 ```bash
@@ -80,17 +96,18 @@ Enviar foto ou vídeo real:
 
 ```bash
 curl -X POST http://localhost:3001/orders/1/media \
-  -F "step=Diagnóstico" \
   -F "description=Ruído identificado" \
   -F "file=@./video-demo.mp4"
 ```
 
-Atualizar uma etapa manualmente:
+O backend grava a mídia na etapa correspondente ao status atual da ordem. Por exemplo: `Em Diagnóstico` vira `Diagnóstico`, `Em Reparo` vira `Reparo` e `Aguardando Peça` vira `Peça`.
+
+Atualizar uma etapa manualmente, sempre respeitando o fluxo de status:
 
 ```bash
 curl -X POST http://localhost:3001/orders/1/status \
   -H "Content-Type: application/json" \
-  -d "{\"status\":\"Em Diagnóstico\",\"note\":\"Diagnóstico iniciado pela oficina\",\"eventType\":\"DIAGNOSIS_STARTED\"}"
+  -d "{\"status\":\"Em Testes Finais\",\"note\":\"Testes finais iniciados pela oficina\",\"eventType\":\"FINAL_TEST_STARTED\"}"
 ```
 
 Iniciar e encerrar uma live:
@@ -140,7 +157,7 @@ docker compose exec redis redis-cli SUBSCRIBE live-notifications
 5. Abrir a tela do cliente pelo botão `Visão do cliente`.
 6. Mostrar no log o `SERVICE_ORDER_CREATED` entrando no Redis Streams.
 7. Mostrar o `diagnostic-worker` recebendo a ordem, mas aguardando ação manual.
-8. Clicar em `Iniciar diagnóstico` e `Finalizar diagnóstico`.
+8. Clicar em `Iniciar diagnóstico`.
 9. Clicar em `Gerar orçamento` na oficina e `Aprovar` na tela do cliente.
 10. Mostrar o `repair-worker` consumindo `BUDGET_APPROVED`, mas aguardando início manual.
 11. Clicar em `Iniciar reparo`, `Solicitar peça` e mostrar o `parts-worker` gerando rastreio.

@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs/promises');
 const multer = require('multer');
 const path = require('path');
 const ordersService = require('../services/orders.service');
@@ -55,6 +56,18 @@ function eventForStatus(status, requestedEvent) {
   };
 
   return mapping[status] || EVENT_TYPES.STATUS_UPDATED;
+}
+
+async function removeUploadedFile(file) {
+  if (!file || !file.path) {
+    return;
+  }
+
+  try {
+    await fs.unlink(file.path);
+  } catch (error) {
+    console.warn(`[api] não foi possível remover upload recusado: ${error.message}`);
+  }
 }
 
 router.get(
@@ -150,6 +163,12 @@ router.post(
       return res.status(404).json({ error: 'Ordem de serviço não encontrada.' });
     }
 
+    await publishEvent(EVENT_TYPES.DIAGNOSIS_FINISHED, {
+      orderId: result.order.id,
+      status: result.order.status,
+      message: `Diagnóstico concluído para a ordem #${result.order.id}. Orçamento disponível.`
+    });
+
     await publishEvent(EVENT_TYPES.BUDGET_CREATED, {
       orderId: result.order.id,
       budgetId: result.budget.id,
@@ -235,18 +254,26 @@ router.post(
       return res.status(400).json({ error: 'O arquivo de mídia é obrigatório.' });
     }
 
-    const type = req.file.mimetype.startsWith('video/') ? 'video' : 'foto';
-    const result = await ordersService.addMedia(getId(req), {
-      step: req.body.step,
-      type,
-      url: `/uploads/${req.file.filename}`,
-      description: req.body.description,
-      originalName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      sizeBytes: req.file.size
-    });
+    let result;
+
+    try {
+      const type = req.file.mimetype.startsWith('video/') ? 'video' : 'foto';
+      result = await ordersService.addMedia(getId(req), {
+        step: req.body.step,
+        type,
+        url: `/uploads/${req.file.filename}`,
+        description: req.body.description,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        sizeBytes: req.file.size
+      });
+    } catch (error) {
+      await removeUploadedFile(req.file);
+      throw error;
+    }
 
     if (!result) {
+      await removeUploadedFile(req.file);
       return res.status(404).json({ error: 'Ordem de serviço não encontrada.' });
     }
 

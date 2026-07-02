@@ -10,7 +10,6 @@ export default function OrderDetails({
   busy,
   onStatus,
   onCreateBudget,
-  onApproveBudget,
   onAddPart,
   onReplacePart,
   onUploadMedia,
@@ -57,7 +56,6 @@ export default function OrderDetails({
         busy={busy}
         onStatus={onStatus}
         onCreateBudget={onCreateBudget}
-        onApproveBudget={onApproveBudget}
         onAddPart={onAddPart}
         onReplacePart={onReplacePart}
       />
@@ -73,7 +71,7 @@ export default function OrderDetails({
             onStartLive={onStartLive}
             onEndLive={onEndLive}
           />
-          <MediaUploader busy={busy} onUpload={onUploadMedia} />
+          <MediaUploader busy={busy} order={order} onUpload={onUploadMedia} />
           <Timeline entries={order.timeline || []} />
         </div>
 

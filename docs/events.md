@@ -37,7 +37,7 @@ Payload gravado no campo `payload`:
 | `SERVICE_ORDER_CREATED` | API | diagnostic-worker, notification-worker | Indica abertura de uma ordem de serviço. |
 | `STATUS_UPDATED` | API | notification-worker | Indica alteração manual de status. |
 | `DIAGNOSIS_STARTED` | API | notification-worker | Indica início manual do diagnóstico. |
-| `DIAGNOSIS_FINISHED` | API | notification-worker | Indica fim manual do diagnóstico. |
+| `DIAGNOSIS_FINISHED` | API | notification-worker | Indica fim do diagnóstico ao gerar orçamento. |
 | `BUDGET_CREATED` | API | notification-worker | Indica orçamento criado e aguardando aprovação. |
 | `BUDGET_APPROVED` | API | repair-worker, notification-worker | Libera o reparo. |
 | `PART_RESERVED` | API | parts-worker, notification-worker | Indica registro de peça para reserva/rastreio. |
@@ -68,8 +68,8 @@ Isso permite demonstrar processos independentes observando o mesmo middleware de
 
 1. `POST /orders` publica `SERVICE_ORDER_CREATED`.
 2. `diagnostic-worker` consome o evento e registra em log que aguarda ação manual da oficina.
-3. `POST /orders/:id/status` publica eventos manuais como `DIAGNOSIS_STARTED`, `DIAGNOSIS_FINISHED`, `REPAIR_STARTED`, `FINAL_TEST_STARTED` e `MAINTENANCE_FINISHED`.
-4. `POST /orders/:id/budget` publica `BUDGET_CREATED`.
+3. `POST /orders/:id/status` publica eventos manuais como `DIAGNOSIS_STARTED`, `REPAIR_STARTED`, `FINAL_TEST_STARTED` e `MAINTENANCE_FINISHED`.
+4. `POST /orders/:id/budget` publica `DIAGNOSIS_FINISHED` e `BUDGET_CREATED`.
 5. `POST /orders/:id/approve-budget` publica `BUDGET_APPROVED`.
 6. `repair-worker` consome a aprovação e registra em log que o reparo está liberado, mas não avança a ordem automaticamente.
 7. `POST /orders/:id/parts` publica `PART_RESERVED`.

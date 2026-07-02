@@ -1,6 +1,13 @@
 const { query, withTransaction } = require('../db');
+const {
+  WORKFLOW_STATUS,
+  assertCurrentStatus,
+  assertMediaAllowed,
+  validateStatusTransition,
+  WorkflowError
+} = require('./workflow');
 
-const DEFAULT_STATUS = 'Aguardando Atendimento';
+const DEFAULT_STATUS = WORKFLOW_STATUS.WAITING_SERVICE;
 
 function mapOrder(row) {
   if (!row) {
@@ -171,19 +178,25 @@ async function createOrder(data) {
 
 async function updateOrderStatus(id, status, note, createdBy = 'api') {
   const updatedId = await withTransaction(async (client) => {
-    const result = await client.query(
+    const currentOrder = await client.query(
+      'SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+
+    if (currentOrder.rowCount === 0) {
+      return null;
+    }
+
+    validateStatusTransition(currentOrder.rows[0].status, status);
+
+    await client.query(
       `
         UPDATE service_orders
         SET status = $1, updated_at = NOW()
         WHERE id = $2
-        RETURNING *
       `,
       [status, id]
     );
-
-    if (result.rowCount === 0) {
-      return null;
-    }
 
     await client.query(
       `
@@ -205,11 +218,13 @@ async function updateOrderStatus(id, status, note, createdBy = 'api') {
 
 async function createBudget(id, data) {
   const budget = await withTransaction(async (client) => {
-    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
     if (order.rowCount === 0) {
       return null;
     }
+
+    assertCurrentStatus('Gerar orçamento', order.rows[0].status, [WORKFLOW_STATUS.DIAGNOSIS]);
 
     const budgetResult = await client.query(
       `
@@ -230,7 +245,7 @@ async function createBudget(id, data) {
         SET status = $1, updated_at = NOW()
         WHERE id = $2
       `,
-      ['Aguardando Aprovação', id]
+      [WORKFLOW_STATUS.WAITING_APPROVAL, id]
     );
 
     await client.query(
@@ -242,10 +257,10 @@ async function createBudget(id, data) {
       `,
       [
         id,
-        'Orçamento Gerado',
+        WORKFLOW_STATUS.BUDGET_CREATED,
         `Orçamento #${budgetResult.rows[0].id} criado.`,
         data.createdBy || 'api',
-        'Aguardando Aprovação',
+        WORKFLOW_STATUS.WAITING_APPROVAL,
         'Cliente deve aprovar ou rejeitar o orçamento.'
       ]
     );
@@ -265,6 +280,17 @@ async function createBudget(id, data) {
 
 async function approveBudget(id, data = {}) {
   const budget = await withTransaction(async (client) => {
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
+
+    if (order.rowCount === 0) {
+      return null;
+    }
+
+    assertCurrentStatus('Aprovar orçamento', order.rows[0].status, [
+      WORKFLOW_STATUS.BUDGET_CREATED,
+      WORKFLOW_STATUS.WAITING_APPROVAL
+    ]);
+
     const budgetId = data.budgetId;
     const budgetResult = await client.query(
       `
@@ -296,7 +322,7 @@ async function approveBudget(id, data = {}) {
         SET status = $1, updated_at = NOW()
         WHERE id = $2
       `,
-      ['Aprovado', id]
+      [WORKFLOW_STATUS.APPROVED, id]
     );
 
     await client.query(
@@ -304,7 +330,7 @@ async function approveBudget(id, data = {}) {
         INSERT INTO status_history (service_order_id, status, note, created_by)
         VALUES ($1, $2, $3, $4)
       `,
-      [id, 'Aprovado', 'Orçamento aprovado pelo cliente.', data.createdBy || 'api']
+      [id, WORKFLOW_STATUS.APPROVED, 'Orçamento aprovado pelo cliente.', data.createdBy || 'api']
     );
 
     return budgetResult.rows[0];
@@ -322,11 +348,13 @@ async function approveBudget(id, data = {}) {
 
 async function addPart(id, data) {
   const part = await withTransaction(async (client) => {
-    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
     if (order.rowCount === 0) {
       return null;
     }
+
+    assertCurrentStatus('Solicitar peça', order.rows[0].status, [WORKFLOW_STATUS.REPAIR]);
 
     const partResult = await client.query(
       `
@@ -343,7 +371,7 @@ async function addPart(id, data) {
         SET status = $1, updated_at = NOW()
         WHERE id = $2
       `,
-      ['Aguardando Peça', id]
+      [WORKFLOW_STATUS.WAITING_PART, id]
     );
 
     await client.query(
@@ -351,7 +379,7 @@ async function addPart(id, data) {
         INSERT INTO status_history (service_order_id, status, note, created_by)
         VALUES ($1, $2, $3, $4)
       `,
-      [id, 'Aguardando Peça', `Peça solicitada: ${partResult.rows[0].name}.`, data.createdBy || 'api']
+      [id, WORKFLOW_STATUS.WAITING_PART, `Peça solicitada: ${partResult.rows[0].name}.`, data.createdBy || 'api']
     );
 
     return partResult.rows[0];
@@ -423,11 +451,13 @@ async function recordPartReplacement(partId, description = 'Peça substituída n
 
 async function addMedia(id, data) {
   const media = await withTransaction(async (client) => {
-    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
     if (order.rowCount === 0) {
       return null;
     }
+
+    const currentStep = assertMediaAllowed(order.rows[0].status);
 
     const result = await client.query(
       `
@@ -446,7 +476,7 @@ async function addMedia(id, data) {
       `,
       [
         id,
-        data.step || 'Diagnóstico',
+        currentStep,
         data.type || 'video',
         data.url || 'https://example.com/videos/diagnostico-demo.mp4',
         data.description || 'Registro visual enviado pela oficina.',
@@ -470,24 +500,76 @@ async function addMedia(id, data) {
 }
 
 async function replacePart(id, partId, data = {}) {
-  const replacement = await recordPartReplacement(
-    partId,
-    data.description || 'Peça substituída manualmente pela oficina.'
-  );
+  const replacement = await withTransaction(async (client) => {
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
-  if (!replacement || Number(replacement.part.service_order_id) !== Number(id)) {
-    return null;
-  }
+    if (order.rowCount === 0) {
+      return null;
+    }
 
-  const current = await getOrderSummary(id);
+    assertCurrentStatus('Substituir peça', order.rows[0].status, [WORKFLOW_STATUS.WAITING_PART]);
 
-  if (current && current.status === 'Aguardando Peça') {
-    await updateOrderStatus(
-      id,
-      'Em Reparo',
-      'Peça recebida e reparo retomado.',
-      data.createdBy || 'oficina'
+    const partResult = await client.query(
+      'SELECT * FROM parts WHERE id = $1 AND service_order_id = $2 FOR UPDATE',
+      [partId, id]
     );
+
+    if (partResult.rowCount === 0) {
+      return null;
+    }
+
+    const part = partResult.rows[0];
+
+    if (part.status === 'Substituída') {
+      throw new WorkflowError('Esta peça já foi substituída.');
+    }
+
+    const replacementResult = await client.query(
+      `
+        INSERT INTO part_replacements (service_order_id, part_id, description)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `,
+      [id, part.id, data.description || 'Peça substituída manualmente pela oficina.']
+    );
+
+    await client.query(
+      `
+        UPDATE parts
+        SET status = $1, updated_at = NOW()
+        WHERE id = $2
+      `,
+      ['Substituída', part.id]
+    );
+
+    await client.query(
+      `
+        UPDATE service_orders
+        SET status = $1, updated_at = NOW()
+        WHERE id = $2
+      `,
+      [WORKFLOW_STATUS.REPAIR, id]
+    );
+
+    await client.query(
+      `
+        INSERT INTO status_history (service_order_id, status, note, created_by)
+        VALUES ($1, $2, $3, $4)
+      `,
+      [id, WORKFLOW_STATUS.REPAIR, 'Peça recebida e reparo retomado.', data.createdBy || 'oficina']
+    );
+
+    return {
+      part: {
+        ...part,
+        status: 'Substituída'
+      },
+      replacement: replacementResult.rows[0]
+    };
+  });
+
+  if (!replacement) {
+    return null;
   }
 
   return {

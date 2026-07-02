@@ -6,7 +6,6 @@ import LiveEvents from '../components/LiveEvents.jsx';
 import {
   API_URL,
   addPart,
-  approveBudget,
   createBudget,
   createSampleOrder,
   endLive,
@@ -192,7 +191,6 @@ export default function WorkshopPage() {
           clientLink={selectedOrder ? `/cliente/${selectedOrder.id}` : ''}
           onStatus={(status, note, eventType) => runSelectedAction(() => updateOrderStatus(selectedId, status, note, eventType))}
           onCreateBudget={() => runAction(createBudget)}
-          onApproveBudget={() => runAction(approveBudget)}
           onAddPart={() => runAction(addPart)}
           onReplacePart={(partId) => {
             if (partId) {
