@@ -5,7 +5,7 @@ import LiveEvents from '../components/LiveEvents.jsx';
 import LiveSession from '../components/LiveSession.jsx';
 import MediaGallery from '../components/MediaGallery.jsx';
 import Timeline from '../components/Timeline.jsx';
-import { API_URL, approveBudget, endLive, fetchOrder, startLive } from '../services/api.js';
+import { API_URL, approveBudget, fetchOrder } from '../services/api.js';
 
 export default function ClientPage({ orderId }) {
   const [order, setOrder] = useState(null);
@@ -155,8 +155,6 @@ export default function ClientPage({ orderId }) {
               busy={busy}
               defaultRole="cliente"
               allowedRoles={['cliente']}
-              onStartLive={() => startLive(order.id)}
-              onEndLive={() => endLive(order.id)}
             />
 
             <Timeline entries={order.timeline || []} />

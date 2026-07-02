@@ -202,7 +202,7 @@ Se não abrir:
 - libere as portas `5173` e `3001` no firewall do Windows;
 - teste `http://192.168.0.25:3001/health` no segundo computador.
 
-Para live com câmera em dois computadores, o navegador pode bloquear câmera/microfone em HTTP. Opções:
+Para live com câmera em dois computadores, a câmera é usada pela oficina e o cliente apenas assiste. O navegador pode bloquear câmera/microfone em HTTP quando a oficina não está em `localhost`. Opções:
 
 - testar a live em duas abas no mesmo computador usando `localhost`;
 - no Chrome, habilitar `chrome://flags/#unsafely-treat-insecure-origin-as-secure` e adicionar `http://192.168.0.25:5173`;

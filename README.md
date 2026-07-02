@@ -15,7 +15,7 @@ O foco não é um frontend sofisticado, mas a demonstração clara de uma aplica
 - frontend recebendo eventos por Socket.IO;
 - fluxo guiado por status, com validação no backend;
 - upload real de fotos/vídeos vinculado à etapa atual da ordem;
-- live WebRTC simples com sinalização por Socket.IO;
+- live WebRTC simples da oficina para o cliente, com sinalização por Socket.IO;
 - logs didáticos para apresentação em sala.
 
 ## Modelo de negócio
@@ -46,7 +46,7 @@ flowchart LR
 - Backend: Node.js, Express, Socket.IO, ioredis, pg
 - Upload: multer, pasta local `backend/uploads`
 - Frontend: React, Vite, Socket.IO Client
-- Live: WebRTC entre navegadores, com Socket.IO para sinalização
+- Live: WebRTC da oficina para o cliente, com Socket.IO para sinalização
 - Middleware: Redis Streams e Redis Pub/Sub
 - Banco: PostgreSQL
 - Infraestrutura: Docker Compose
@@ -110,7 +110,7 @@ http://192.168.0.25:5173/cliente/ID_DA_ORDEM
 
 Os dois computadores precisam estar na mesma rede e o firewall do Windows precisa permitir acesso às portas `5173` e `3001`.
 
-Observação importante: câmera/microfone via WebRTC normalmente exigem HTTPS, exceto em `localhost`. Para testar a live em dois computadores por HTTP, use uma destas opções:
+Observação importante: a câmera/microfone da oficina via WebRTC normalmente exigem HTTPS, exceto em `localhost`. O cliente apenas assiste à transmissão. Para testar a câmera da oficina por HTTP, use uma destas opções:
 
 - testar a live em duas abas no mesmo computador usando `localhost`;
 - habilitar no Chrome a flag `chrome://flags/#unsafely-treat-insecure-origin-as-secure` para `http://192.168.0.25:5173`;
@@ -127,7 +127,7 @@ Pelo frontend:
 5. No cliente, aprove o orçamento.
 6. Na oficina, clique em `Iniciar reparo`, `Solicitar peça`, `Substituir peça`.
 7. Envie uma foto ou vídeo real em `Mídia real`; a etapa é definida automaticamente pelo status atual.
-8. Para live, na oficina clique em `Iniciar live`; no cliente clique em `Entrar na live`.
+8. Para live, na oficina clique em `Iniciar live`; no cliente clique em `Entrar na live` para assistir.
 9. Acompanhe o painel de eventos em tempo real nas duas telas.
 
 Pela API:
@@ -192,7 +192,7 @@ Roteiro sugerido:
 6. Mostrar `repair-worker` consumindo `BUDGET_APPROVED` sem avançar tudo automaticamente.
 7. Solicitar peça e mostrar `parts-worker` gerando rastreio.
 8. Enviar uma foto/vídeo real e mostrar `MEDIA_UPLOADED`.
-9. Iniciar uma live entre as telas de oficina e cliente.
+9. Iniciar uma live da oficina para a tela do cliente, sem câmera do lado do cliente.
 10. Mostrar `notification-worker` publicando no Pub/Sub.
 11. Mostrar o frontend recebendo `order-event` via Socket.IO.
 

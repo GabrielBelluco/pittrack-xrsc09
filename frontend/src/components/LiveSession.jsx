@@ -14,8 +14,8 @@ export default function LiveSession({
   busy,
   defaultRole = 'oficina',
   allowedRoles = ['oficina', 'cliente'],
-  onStartLive,
-  onEndLive
+  onStartLive = async () => {},
+  onEndLive = async () => {}
 }) {
   const [role, setRole] = useState(defaultRole);
   const [liveStatus, setLiveStatus] = useState('Live inativa');
@@ -232,6 +232,10 @@ export default function LiveSession({
   const active = Boolean(order.activeLive);
   const canBroadcast = allowedRoles.includes('oficina') && role === 'oficina';
   const canWatch = allowedRoles.includes('cliente') && role === 'cliente';
+  const showLocalPreview = allowedRoles.includes('oficina');
+  const showRemotePreview = allowedRoles.includes('cliente');
+  const videoGridClass = showLocalPreview && showRemotePreview ? 'video-grid' : 'video-grid single-video';
+  const stopLabel = canBroadcast ? 'Encerrar live' : 'Sair da live';
 
   return (
     <div className="live-panel section-block">
@@ -251,15 +255,19 @@ export default function LiveSession({
         </div>
       )}
 
-      <div className="video-grid">
-        <div>
-          <span>Câmera local</span>
-          <video ref={localVideoRef} muted autoPlay playsInline />
-        </div>
-        <div>
-          <span>Transmissão recebida</span>
-          <video ref={remoteVideoRef} autoPlay playsInline />
-        </div>
+      <div className={videoGridClass}>
+        {showLocalPreview && (
+          <div>
+            <span>Câmera da oficina</span>
+            <video ref={localVideoRef} muted autoPlay playsInline />
+          </div>
+        )}
+        {showRemotePreview && (
+          <div>
+            <span>Transmissão da oficina</span>
+            <video ref={remoteVideoRef} autoPlay playsInline />
+          </div>
+        )}
       </div>
 
       <p className="muted">{liveStatus}</p>
@@ -281,7 +289,7 @@ export default function LiveSession({
 
         <button type="button" onClick={stopLive} disabled={busy || (!broadcasting && !watching)}>
           <VideoOff size={18} />
-          Sair/encerrar
+          {stopLabel}
         </button>
       </div>
     </div>

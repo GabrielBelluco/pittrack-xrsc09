@@ -523,6 +523,10 @@ button:disabled {
   gap: 12px;
 }
 
+.video-grid.single-video {
+  grid-template-columns: 1fr;
+}
+
 .video-grid div {
   min-width: 0;
 }
