@@ -20,7 +20,7 @@ O protótipo prioriza os conceitos de Sistemas Distribuídos:
 - PostgreSQL para persistência relacional;
 - Socket.IO para entregar atualizações ao navegador;
 - upload real de fotos/vídeos por etapa;
-- live WebRTC entre oficina e cliente;
+- live WebRTC da oficina para o cliente;
 - logs explícitos para demonstrar troca de mensagens.
 
 Autenticação e gestão financeira completa não fazem parte desta primeira versão.
@@ -93,7 +93,7 @@ Arquivos reais de foto e vídeo são recebidos por `POST /orders/:id/media`, sal
 
 ### Live WebRTC
 
-A live usa WebRTC para enviar áudio/vídeo diretamente entre navegadores. A API não transporta o vídeo; ela usa Socket.IO apenas para sinalização (`offer`, `answer` e `ICE candidates`) e registra `LIVE_STARTED`/`LIVE_ENDED` como eventos de negócio.
+A live usa WebRTC para enviar áudio/vídeo da oficina para o navegador do cliente. A API não transporta o vídeo; ela usa Socket.IO apenas para sinalização (`offer`, `answer` e `ICE candidates`) e registra `LIVE_STARTED`/`LIVE_ENDED` como eventos de negócio.
 
 ### Redis Pub/Sub
 
@@ -158,6 +158,6 @@ Benefícios para o cliente:
 ## Limitações assumidas
 
 - não há autenticação nesta versão;
-- a live WebRTC é ponto a ponto e depende das permissões de câmera/microfone do navegador;
+- a live WebRTC é ponto a ponto e depende das permissões de câmera/microfone no navegador da oficina;
 - não há garantia transacional entre PostgreSQL e Redis Streams;
 - o frontend é apenas suficiente para demonstrar o fluxo distribuído.
