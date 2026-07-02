@@ -1,0 +1,33 @@
+const EVENT_TYPES = {
+  SERVICE_ORDER_CREATED: 'SERVICE_ORDER_CREATED',
+  STATUS_UPDATED: 'STATUS_UPDATED',
+  DIAGNOSIS_STARTED: 'DIAGNOSIS_STARTED',
+  DIAGNOSIS_FINISHED: 'DIAGNOSIS_FINISHED',
+  BUDGET_CREATED: 'BUDGET_CREATED',
+  BUDGET_APPROVED: 'BUDGET_APPROVED',
+  PART_RESERVED: 'PART_RESERVED',
+  PART_REPLACED: 'PART_REPLACED',
+  VIDEO_UPLOADED: 'VIDEO_UPLOADED',
+  REPAIR_STARTED: 'REPAIR_STARTED',
+  FINAL_TEST_STARTED: 'FINAL_TEST_STARTED',
+  MAINTENANCE_FINISHED: 'MAINTENANCE_FINISHED'
+};
+
+const STATUS_FLOW = [
+  'Aguardando Atendimento',
+  'Em Diagnóstico',
+  'Orçamento Gerado',
+  'Aguardando Aprovação',
+  'Aprovado',
+  'Em Reparo',
+  'Aguardando Peça',
+  'Em Testes Finais',
+  'Finalizado',
+  'Disponível para Retirada',
+  'Cancelado'
+];
+
+module.exports = {
+  EVENT_TYPES,
+  STATUS_FLOW
+};
