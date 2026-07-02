@@ -44,10 +44,18 @@ async function startServer() {
   app.use('/orders', ordersRouter);
 
   app.use((error, req, res, next) => {
-    console.error('[api] erro:', error);
-    res.status(500).json({
-      error: 'Erro interno no servidor.',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message
+    const statusCode = error.statusCode || (error.name === 'MulterError' ? 400 : 500);
+
+    if (statusCode >= 500) {
+      console.error('[api] erro:', error);
+    } else {
+      console.warn(`[api] requisição recusada: ${error.message}`);
+    }
+
+    res.status(statusCode).json({
+      error: statusCode >= 500 ? 'Erro interno no servidor.' : error.message,
+      code: error.code,
+      details: statusCode >= 500 && process.env.NODE_ENV !== 'production' ? error.message : undefined
     });
   });
 

@@ -13,7 +13,8 @@ O foco não é um frontend sofisticado, mas a demonstração clara de uma aplica
 - notificações ao vivo por Redis Pub/Sub;
 - persistência em PostgreSQL;
 - frontend recebendo eventos por Socket.IO;
-- upload real de fotos/vídeos por etapa;
+- fluxo guiado por status, com validação no backend;
+- upload real de fotos/vídeos vinculado à etapa atual da ordem;
 - live WebRTC simples com sinalização por Socket.IO;
 - logs didáticos para apresentação em sala.
 
@@ -122,10 +123,10 @@ Pelo frontend:
 1. Abra a tela da oficina em `/oficina`.
 2. Clique em `Criar ordem exemplo`.
 3. Abra a tela do cliente pelo botão `Visão do cliente` ou pela URL `/cliente/ID_DA_ORDEM`.
-4. Na oficina, avance manualmente: `Iniciar diagnóstico`, `Finalizar diagnóstico`, `Gerar orçamento`.
+4. Na oficina, avance manualmente: `Iniciar diagnóstico`, `Gerar orçamento`.
 5. No cliente, aprove o orçamento.
 6. Na oficina, clique em `Iniciar reparo`, `Solicitar peça`, `Substituir peça`.
-7. Envie uma foto ou vídeo real em `Mídia real`.
+7. Envie uma foto ou vídeo real em `Mídia real`; a etapa é definida automaticamente pelo status atual.
 8. Para live, na oficina clique em `Iniciar live`; no cliente clique em `Entrar na live`.
 9. Acompanhe o painel de eventos em tempo real nas duas telas.
 
@@ -146,7 +147,7 @@ Guarda o estado permanente: clientes, veículos, ordens, status, orçamentos, pe
 
 Funciona como log de eventos importantes. A API publica eventos como `SERVICE_ORDER_CREATED`, `BUDGET_APPROVED`, `MEDIA_UPLOADED`, `LIVE_STARTED` e `LIVE_ENDED`. Workers independentes consomem esses eventos com `XREADGROUP`.
 
-Na versão atual, as etapas principais são manuais. Os workers não avançam diagnóstico ou reparo sozinhos; eles demonstram processos independentes reagindo aos eventos, gerando logs e, no caso de peças, simulando reserva/rastreio.
+Na versão atual, as etapas principais são manuais e guiadas por status. Os workers não avançam diagnóstico ou reparo sozinhos; eles demonstram processos independentes reagindo aos eventos, gerando logs e, no caso de peças, simulando reserva/rastreio. A API valida a ordem do fluxo para impedir reparo antes de orçamento aprovado, peça antes de reparo e finalização antes dos testes.
 
 ### Redis Pub/Sub
 

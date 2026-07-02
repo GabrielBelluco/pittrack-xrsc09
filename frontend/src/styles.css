@@ -404,6 +404,29 @@ button:disabled {
   margin-bottom: 0;
 }
 
+.workflow-step {
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #526170;
+}
+
+.workflow-step strong {
+  color: #17202a;
+}
+
+.workflow-hint,
+.workflow-empty {
+  margin: 0 0 14px;
+  color: #334253;
+}
+
+.workflow-empty {
+  margin-bottom: 0;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
@@ -433,6 +456,31 @@ button:disabled {
   background: #ffffff;
   border: 1px solid #cfd9df;
   border-radius: 6px;
+}
+
+.readonly-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-height: 76px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #cfd9df;
+  border-radius: 6px;
+}
+
+.readonly-field span {
+  color: #334253;
+  font-weight: 700;
+}
+
+.readonly-field strong {
+  color: #17202a;
+}
+
+.readonly-field small {
+  color: #667485;
 }
 
 .live-panel {
