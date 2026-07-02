@@ -1,3 +1,17 @@
+import { API_URL } from '../services/api.js';
+
+function mediaUrl(url) {
+  if (!url) {
+    return '';
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+
+  return `${API_URL}${url}`;
+}
+
 export default function MediaGallery({ media, parts, budgets }) {
   return (
     <div className="side-stack">
@@ -10,13 +24,22 @@ export default function MediaGallery({ media, parts, budgets }) {
         <div className="compact-list">
           {media.length === 0 && <p className="empty-state">Sem vídeos ou fotos.</p>}
 
-          {media.map((item) => (
-            <a className="media-row" key={item.id} href={item.url} target="_blank" rel="noreferrer">
-              <strong>{item.step}</strong>
-              <span>{item.description}</span>
-              <small>{item.url}</small>
-            </a>
-          ))}
+          {media.map((item) => {
+            const url = mediaUrl(item.url);
+
+            return (
+              <article className="media-row" key={item.id}>
+                <strong>{item.step}</strong>
+                {item.type === 'video' ? (
+                  <video controls src={url} />
+                ) : (
+                  <img src={url} alt={item.description || item.step} />
+                )}
+                <span>{item.description}</span>
+                <small>{item.original_name || item.url}</small>
+              </article>
+            );
+          })}
         </div>
       </div>
 

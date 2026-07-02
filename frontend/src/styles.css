@@ -19,7 +19,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -152,6 +153,11 @@ small {
   font-weight: 700;
 }
 
+.inline-primary {
+  align-self: flex-start;
+  margin: 0;
+}
+
 .action-row button {
   padding: 0 12px;
   color: #243241;
@@ -273,6 +279,12 @@ button:disabled {
   align-items: start;
 }
 
+.main-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .section-block {
   padding: 16px;
   background: #fbfcfd;
@@ -287,6 +299,122 @@ button:disabled {
 .section-title span {
   color: #667485;
   font-size: 0.86rem;
+}
+
+.workflow {
+  margin-bottom: 22px;
+  padding: 16px;
+  background: #f8fafb;
+  border: 1px solid #e1e7eb;
+  border-radius: 8px;
+}
+
+.workflow .action-row {
+  margin-bottom: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.media-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.media-uploader label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #334253;
+  font-weight: 700;
+}
+
+.media-uploader input,
+.media-uploader select,
+.media-uploader textarea {
+  width: 100%;
+  padding: 10px;
+  color: #17202a;
+  background: #ffffff;
+  border: 1px solid #cfd9df;
+  border-radius: 6px;
+}
+
+.live-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-on {
+  color: #23633b;
+  font-weight: 700;
+}
+
+.role-toggle {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px;
+  background: #edf2f5;
+  border: 1px solid #cfd9df;
+  border-radius: 8px;
+}
+
+.role-toggle button {
+  min-height: 34px;
+  padding: 0 12px;
+  color: #526170;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.role-toggle button.selected {
+  color: #ffffff;
+  background: #1f5a78;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.video-grid div {
+  min-width: 0;
+}
+
+.video-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: #526170;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.video-grid video,
+.media-row video,
+.media-row img {
+  display: block;
+  width: 100%;
+  background: #111827;
+  border-radius: 6px;
+}
+
+.video-grid video {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.media-row video,
+.media-row img {
+  max-height: 220px;
+  margin: 8px 0;
+  object-fit: contain;
 }
 
 .timeline {
@@ -376,7 +504,9 @@ button:disabled {
 
 @media (max-width: 820px) {
   .app-shell,
-  .details-grid {
+  .details-grid,
+  .form-grid,
+  .video-grid {
     grid-template-columns: 1fr;
   }
 

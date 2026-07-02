@@ -13,6 +13,8 @@ O foco não é um frontend sofisticado, mas a demonstração clara de uma aplica
 - notificações ao vivo por Redis Pub/Sub;
 - persistência em PostgreSQL;
 - frontend recebendo eventos por Socket.IO;
+- upload real de fotos/vídeos por etapa;
+- live WebRTC simples com sinalização por Socket.IO;
 - logs didáticos para apresentação em sala.
 
 ## Modelo de negócio
@@ -26,6 +28,7 @@ O PitTrack resolve esse problema com um fluxo centralizado de manutenção: orde
 ```mermaid
 flowchart LR
   Frontend["React + Socket.IO Client"] -->|"HTTP"| API["Node.js + Express"]
+  Frontend <-->|"WebRTC video<br/>Socket.IO signaling"| Frontend2["Outro navegador"]
   API -->|"SQL"| Postgres["PostgreSQL"]
   API -->|"XADD"| Streams["Redis Streams"]
   Streams --> Diagnostic["diagnostic-worker"]
@@ -40,7 +43,9 @@ flowchart LR
 ## Tecnologias
 
 - Backend: Node.js, Express, Socket.IO, ioredis, pg
+- Upload: multer, pasta local `backend/uploads`
 - Frontend: React, Vite, Socket.IO Client
+- Live: WebRTC entre navegadores, com Socket.IO para sinalização
 - Middleware: Redis Streams e Redis Pub/Sub
 - Banco: PostgreSQL
 - Infraestrutura: Docker Compose
@@ -71,19 +76,54 @@ Acesse:
 - API: http://localhost:3001
 - Health check: http://localhost:3001/health
 
+## Rodando em dois computadores
+
+No computador que vai rodar o Docker, descubra o IP da rede:
+
+```powershell
+ipconfig
+```
+
+Use o IPv4 da placa Wi-Fi/Ethernet. Exemplo: `192.168.0.25`.
+
+No `.env`, ajuste:
+
+```env
+VITE_API_URL=http://192.168.0.25:3001
+CORS_ORIGIN=http://localhost:5173,http://192.168.0.25:5173
+```
+
+Suba novamente:
+
+```powershell
+docker compose up --build
+```
+
+No outro computador, abra:
+
+```text
+http://192.168.0.25:5173
+```
+
+Os dois computadores precisam estar na mesma rede e o firewall do Windows precisa permitir acesso às portas `5173` e `3001`.
+
+Observação importante: câmera/microfone via WebRTC normalmente exigem HTTPS, exceto em `localhost`. Para testar a live em dois computadores por HTTP, use uma destas opções:
+
+- testar a live em duas abas no mesmo computador usando `localhost`;
+- habilitar no Chrome a flag `chrome://flags/#unsafely-treat-insecure-origin-as-secure` para `http://192.168.0.25:5173`;
+- usar HTTPS/túnel local em uma versão posterior.
+
 ## Como testar
 
 Pelo frontend:
 
 1. Clique em `Criar ordem exemplo`.
-2. Veja o diagnóstico automático iniciar pelo worker.
-3. Clique em `Gerar orçamento`.
-4. Clique em `Aprovar`.
-5. Veja o worker de reparo avançar a ordem.
-6. Clique em `Registrar peça`.
-7. Veja o worker de peças simular rastreio e substituição.
-8. Clique em `Registrar vídeo`.
-9. Acompanhe o painel de eventos em tempo real.
+2. Avance manualmente: `Iniciar diagnóstico`, `Finalizar diagnóstico`, `Gerar orçamento`.
+3. Clique em `Aprovar orçamento`.
+4. Clique em `Iniciar reparo`, `Solicitar peça`, `Substituir peça`.
+5. Envie uma foto ou vídeo real em `Mídia real`.
+6. Para live, em um navegador use modo `Oficina` e clique em `Iniciar live`; em outro navegador selecione a mesma ordem, use modo `Cliente` e clique em `Entrar na live`.
+7. Acompanhe o painel de eventos em tempo real.
 
 Pela API:
 
@@ -100,7 +140,9 @@ Guarda o estado permanente: clientes, veículos, ordens, status, orçamentos, pe
 
 ### Redis Streams
 
-Funciona como log de eventos importantes. A API publica eventos como `SERVICE_ORDER_CREATED`, `BUDGET_APPROVED` e `VIDEO_UPLOADED`. Workers independentes consomem esses eventos com `XREADGROUP`.
+Funciona como log de eventos importantes. A API publica eventos como `SERVICE_ORDER_CREATED`, `BUDGET_APPROVED`, `MEDIA_UPLOADED`, `LIVE_STARTED` e `LIVE_ENDED`. Workers independentes consomem esses eventos com `XREADGROUP`.
+
+Na versão atual, as etapas principais são manuais. Os workers não avançam diagnóstico ou reparo sozinhos; eles demonstram processos independentes reagindo aos eventos, gerando logs e, no caso de peças, simulando reserva/rastreio.
 
 ### Redis Pub/Sub
 
@@ -140,10 +182,12 @@ Roteiro sugerido:
 2. Mostrar `SERVICE_ORDER_CREATED` no stream.
 3. Mostrar `diagnostic-worker` reagindo ao evento.
 4. Gerar e aprovar um orçamento.
-5. Mostrar `repair-worker` consumindo `BUDGET_APPROVED`.
-6. Registrar peça e vídeo.
-7. Mostrar `notification-worker` publicando no Pub/Sub.
-8. Mostrar o frontend recebendo `order-event` via Socket.IO.
+5. Mostrar `repair-worker` consumindo `BUDGET_APPROVED` sem avançar tudo automaticamente.
+6. Solicitar peça e mostrar `parts-worker` gerando rastreio.
+7. Enviar uma foto/vídeo real e mostrar `MEDIA_UPLOADED`.
+8. Iniciar uma live entre dois navegadores.
+9. Mostrar `notification-worker` publicando no Pub/Sub.
+10. Mostrar o frontend recebendo `order-event` via Socket.IO.
 
 ## Documentação complementar
 

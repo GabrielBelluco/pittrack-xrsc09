@@ -1,12 +1,8 @@
 process.env.SERVICE_NAME = process.env.SERVICE_NAME || 'diagnostic-worker';
 
 const { waitForDatabase } = require('../db');
-const ordersService = require('../services/orders.service');
 const { EVENT_TYPES } = require('../events/constants');
-const { publishEvent } = require('../events/publisher');
 const { startStreamConsumer } = require('../events/consumer');
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
   await waitForDatabase();
@@ -20,29 +16,9 @@ async function main() {
       }
 
       const orderId = event.orderId;
-      console.log(`[diagnostic-worker] Ordem #${orderId} recebida. Iniciando diagnóstico distribuído.`);
-
-      await ordersService.updateOrderStatus(
-        orderId,
-        'Em Diagnóstico',
-        'Diagnóstico iniciado pelo worker após evento de criação.',
-        'diagnostic-worker'
+      console.log(
+        `[diagnostic-worker] Ordem #${orderId} recebida. Aguardando ação manual da oficina para iniciar diagnóstico.`
       );
-
-      await publishEvent(EVENT_TYPES.DIAGNOSIS_STARTED, {
-        orderId,
-        status: 'Em Diagnóstico',
-        message: `Diagnóstico iniciado para a ordem #${orderId}.`
-      });
-
-      await sleep(1500);
-
-      await publishEvent(EVENT_TYPES.DIAGNOSIS_FINISHED, {
-        orderId,
-        message: `Diagnóstico concluído para a ordem #${orderId}. A oficina pode gerar o orçamento.`
-      });
-
-      console.log(`[diagnostic-worker] Diagnóstico simulado finalizado para ordem #${orderId}.`);
     }
   });
 }

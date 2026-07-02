@@ -30,11 +30,14 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
+      UPLOAD_DIR: /app/uploads
       DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
       REDIS_NOTIFICATIONS_CHANNEL: ${REDIS_NOTIFICATIONS_CHANNEL:-live-notifications}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - ./backend/uploads:/app/uploads
     depends_on:
       - postgres
       - redis

@@ -6,12 +6,16 @@ import LiveEvents from '../components/LiveEvents.jsx';
 import {
   API_URL,
   addPart,
-  addVideo,
   approveBudget,
   createBudget,
   createSampleOrder,
+  endLive,
   fetchOrder,
-  fetchOrders
+  fetchOrders,
+  replacePart,
+  startLive,
+  updateOrderStatus,
+  uploadMedia
 } from '../services/api.js';
 
 export default function Dashboard() {
@@ -23,6 +27,7 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
+  const [socket, setSocket] = useState(null);
   const selectedIdRef = useRef(null);
 
   const loadOrders = useCallback(async () => {
@@ -68,6 +73,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const socket = io(API_URL);
+    setSocket(socket);
 
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
@@ -76,13 +82,22 @@ export default function Dashboard() {
       setEvents((current) => [event, ...current].slice(0, 30));
       void loadOrders();
 
-      if (event.orderId && event.orderId === selectedIdRef.current) {
+      if (event.orderId && Number(event.orderId) === Number(selectedIdRef.current)) {
         void loadOrder(event.orderId);
       }
     });
 
-    return () => socket.disconnect();
+    return () => {
+      setSocket(null);
+      socket.disconnect();
+    };
   }, [loadOrder, loadOrders]);
+
+  useEffect(() => {
+    if (socket && selectedId) {
+      socket.emit('join-order', selectedId);
+    }
+  }, [socket, selectedId]);
 
   async function runAction(action) {
     if (!selectedId) {
@@ -97,6 +112,44 @@ export default function Dashboard() {
       await loadOrder(selectedId);
     } catch (actionError) {
       setError(actionError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runSelectedAction(action) {
+    if (!selectedId) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      setError('');
+      await action();
+      await loadOrders();
+      await loadOrder(selectedId);
+    } catch (actionError) {
+      setError(actionError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runLiveAction(action) {
+    if (!selectedId) {
+      return null;
+    }
+
+    setBusy(true);
+    try {
+      setError('');
+      const result = await action(selectedId);
+      await loadOrders();
+      await loadOrder(selectedId);
+      return result;
+    } catch (actionError) {
+      setError(actionError.message);
+      throw actionError;
     } finally {
       setBusy(false);
     }
@@ -133,11 +186,21 @@ export default function Dashboard() {
 
         <OrderDetails
           order={selectedOrder}
+          socket={socket}
           busy={busy}
+          onStatus={(status, note, eventType) => runSelectedAction(() => updateOrderStatus(selectedId, status, note, eventType))}
           onCreateBudget={() => runAction(createBudget)}
           onApproveBudget={() => runAction(approveBudget)}
           onAddPart={() => runAction(addPart)}
-          onAddVideo={() => runAction(addVideo)}
+          onReplacePart={(partId) => {
+            if (partId) {
+              return runSelectedAction(() => replacePart(selectedId, partId));
+            }
+            return undefined;
+          }}
+          onUploadMedia={(media) => runSelectedAction(() => uploadMedia(selectedId, media))}
+          onStartLive={() => runLiveAction(startLive)}
+          onEndLive={() => runLiveAction(endLive)}
         />
       </div>
 

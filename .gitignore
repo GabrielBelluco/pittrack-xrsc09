@@ -8,5 +8,7 @@ coverage/
 .idea/
 .vscode/
 .docker-temp/
+backend/uploads/*
+!backend/uploads/.gitkeep
 postgres-data/
 redis-data/
