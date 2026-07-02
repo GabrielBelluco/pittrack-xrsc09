@@ -72,7 +72,8 @@ docker-compose up --build
 
 Acesse:
 
-- Frontend: http://localhost:5173
+- Tela da oficina: http://localhost:5173/oficina
+- Tela do cliente: http://localhost:5173/cliente/ID_DA_ORDEM
 - API: http://localhost:3001
 - Health check: http://localhost:3001/health
 
@@ -102,7 +103,8 @@ docker compose up --build
 No outro computador, abra:
 
 ```text
-http://192.168.0.25:5173
+http://192.168.0.25:5173/oficina
+http://192.168.0.25:5173/cliente/ID_DA_ORDEM
 ```
 
 Os dois computadores precisam estar na mesma rede e o firewall do Windows precisa permitir acesso às portas `5173` e `3001`.
@@ -117,13 +119,15 @@ Observação importante: câmera/microfone via WebRTC normalmente exigem HTTPS, 
 
 Pelo frontend:
 
-1. Clique em `Criar ordem exemplo`.
-2. Avance manualmente: `Iniciar diagnóstico`, `Finalizar diagnóstico`, `Gerar orçamento`.
-3. Clique em `Aprovar orçamento`.
-4. Clique em `Iniciar reparo`, `Solicitar peça`, `Substituir peça`.
-5. Envie uma foto ou vídeo real em `Mídia real`.
-6. Para live, em um navegador use modo `Oficina` e clique em `Iniciar live`; em outro navegador selecione a mesma ordem, use modo `Cliente` e clique em `Entrar na live`.
-7. Acompanhe o painel de eventos em tempo real.
+1. Abra a tela da oficina em `/oficina`.
+2. Clique em `Criar ordem exemplo`.
+3. Abra a tela do cliente pelo botão `Visão do cliente` ou pela URL `/cliente/ID_DA_ORDEM`.
+4. Na oficina, avance manualmente: `Iniciar diagnóstico`, `Finalizar diagnóstico`, `Gerar orçamento`.
+5. No cliente, aprove o orçamento.
+6. Na oficina, clique em `Iniciar reparo`, `Solicitar peça`, `Substituir peça`.
+7. Envie uma foto ou vídeo real em `Mídia real`.
+8. Para live, na oficina clique em `Iniciar live`; no cliente clique em `Entrar na live`.
+9. Acompanhe o painel de eventos em tempo real nas duas telas.
 
 Pela API:
 
@@ -172,7 +176,8 @@ docker compose exec redis redis-cli SUBSCRIBE live-notifications
 
 Mostre três telas ao mesmo tempo:
 
-- frontend em http://localhost:5173;
+- tela da oficina em http://localhost:5173/oficina;
+- tela do cliente em http://localhost:5173/cliente/ID_DA_ORDEM;
 - terminal com logs dos workers;
 - terminal com inspeção do Redis Streams ou Pub/Sub.
 
@@ -181,13 +186,14 @@ Roteiro sugerido:
 1. Criar uma ordem de serviço.
 2. Mostrar `SERVICE_ORDER_CREATED` no stream.
 3. Mostrar `diagnostic-worker` reagindo ao evento.
-4. Gerar e aprovar um orçamento.
-5. Mostrar `repair-worker` consumindo `BUDGET_APPROVED` sem avançar tudo automaticamente.
-6. Solicitar peça e mostrar `parts-worker` gerando rastreio.
-7. Enviar uma foto/vídeo real e mostrar `MEDIA_UPLOADED`.
-8. Iniciar uma live entre dois navegadores.
-9. Mostrar `notification-worker` publicando no Pub/Sub.
-10. Mostrar o frontend recebendo `order-event` via Socket.IO.
+4. Abrir a visão do cliente da ordem.
+5. Gerar orçamento na oficina e aprovar no cliente.
+6. Mostrar `repair-worker` consumindo `BUDGET_APPROVED` sem avançar tudo automaticamente.
+7. Solicitar peça e mostrar `parts-worker` gerando rastreio.
+8. Enviar uma foto/vídeo real e mostrar `MEDIA_UPLOADED`.
+9. Iniciar uma live entre as telas de oficina e cliente.
+10. Mostrar `notification-worker` publicando no Pub/Sub.
+11. Mostrar o frontend recebendo `order-event` via Socket.IO.
 
 ## Documentação complementar
 

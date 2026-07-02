@@ -29,7 +29,8 @@ docker compose up --build
 
 ## Endereços
 
-- Frontend: http://localhost:5173
+- Tela da oficina: http://localhost:5173/oficina
+- Tela do cliente: http://localhost:5173/cliente/ID_DA_ORDEM
 - API: http://localhost:3001
 - Health check: http://localhost:3001/health
 - PostgreSQL: localhost:5432
@@ -133,19 +134,20 @@ docker compose exec redis redis-cli SUBSCRIBE live-notifications
 ## Roteiro de demonstração em sala
 
 1. Subir o ambiente com `docker compose up --build`.
-2. Abrir http://localhost:5173.
+2. Abrir http://localhost:5173/oficina.
 3. Abrir os logs dos workers em outro terminal.
 4. Clicar em `Criar ordem exemplo`.
-5. Mostrar no log o `SERVICE_ORDER_CREATED` entrando no Redis Streams.
-6. Mostrar o `diagnostic-worker` recebendo a ordem, mas aguardando ação manual.
-7. Clicar em `Iniciar diagnóstico` e `Finalizar diagnóstico`.
-8. Clicar em `Gerar orçamento` e depois `Aprovar orçamento`.
-9. Mostrar o `repair-worker` consumindo `BUDGET_APPROVED`, mas aguardando início manual.
-10. Clicar em `Iniciar reparo`, `Solicitar peça` e mostrar o `parts-worker` gerando rastreio.
-11. Clicar em `Substituir peça`, `Iniciar testes`, `Finalizar serviço`.
-12. Enviar uma foto ou vídeo real em `Mídia real`.
-13. Iniciar uma live no modo `Oficina` e entrar em outro navegador no modo `Cliente`.
-14. Apontar no painel de eventos que o frontend recebe notificações via Socket.IO após Pub/Sub.
+5. Abrir a tela do cliente pelo botão `Visão do cliente`.
+6. Mostrar no log o `SERVICE_ORDER_CREATED` entrando no Redis Streams.
+7. Mostrar o `diagnostic-worker` recebendo a ordem, mas aguardando ação manual.
+8. Clicar em `Iniciar diagnóstico` e `Finalizar diagnóstico`.
+9. Clicar em `Gerar orçamento` na oficina e `Aprovar` na tela do cliente.
+10. Mostrar o `repair-worker` consumindo `BUDGET_APPROVED`, mas aguardando início manual.
+11. Clicar em `Iniciar reparo`, `Solicitar peça` e mostrar o `parts-worker` gerando rastreio.
+12. Clicar em `Substituir peça`, `Iniciar testes`, `Finalizar serviço`.
+13. Enviar uma foto ou vídeo real em `Mídia real`.
+14. Iniciar uma live na oficina e entrar na live pela tela do cliente.
+15. Apontar no painel de eventos que o frontend recebe notificações via Socket.IO após Pub/Sub.
 
 ## Dois computadores na mesma rede
 
@@ -173,7 +175,8 @@ docker compose up --build
 No segundo computador, abra:
 
 ```text
-http://192.168.0.25:5173
+http://192.168.0.25:5173/oficina
+http://192.168.0.25:5173/cliente/ID_DA_ORDEM
 ```
 
 Se não abrir:

@@ -8,8 +8,16 @@ function closePeer(peerRef) {
   }
 }
 
-export default function LiveSession({ order, socket, busy, onStartLive, onEndLive }) {
-  const [role, setRole] = useState('oficina');
+export default function LiveSession({
+  order,
+  socket,
+  busy,
+  defaultRole = 'oficina',
+  allowedRoles = ['oficina', 'cliente'],
+  onStartLive,
+  onEndLive
+}) {
+  const [role, setRole] = useState(defaultRole);
   const [liveStatus, setLiveStatus] = useState('Live inativa');
   const [broadcasting, setBroadcasting] = useState(false);
   const [watching, setWatching] = useState(false);
@@ -17,9 +25,13 @@ export default function LiveSession({ order, socket, busy, onStartLive, onEndLiv
   const remoteVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const peerRef = useRef(null);
-  const roleRef = useRef(role);
+  const roleRef = useRef(defaultRole);
 
   function setLiveRole(nextRole) {
+    if (!allowedRoles.includes(nextRole)) {
+      return;
+    }
+
     roleRef.current = nextRole;
     setRole(nextRole);
   }
@@ -67,6 +79,13 @@ export default function LiveSession({ order, socket, busy, onStartLive, onEndLiv
 
   async function startBroadcast() {
     if (!socket || !order) {
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setLiveStatus(
+        'Câmera indisponível neste endereço. Em celular, a live precisa de HTTPS; por HTTP teste em localhost no PC ou use um túnel HTTPS.'
+      );
       return;
     }
 
@@ -206,7 +225,13 @@ export default function LiveSession({ order, socket, busy, onStartLive, onEndLiv
     }
   }, []);
 
+  useEffect(() => {
+    setLiveRole(defaultRole);
+  }, [defaultRole]);
+
   const active = Boolean(order.activeLive);
+  const canBroadcast = allowedRoles.includes('oficina') && role === 'oficina';
+  const canWatch = allowedRoles.includes('cliente') && role === 'cliente';
 
   return (
     <div className="live-panel section-block">
@@ -215,14 +240,16 @@ export default function LiveSession({ order, socket, busy, onStartLive, onEndLiv
         <span className={active ? 'live-on' : ''}>{active ? 'ativa' : 'inativa'}</span>
       </div>
 
-      <div className="role-toggle">
-        <button type="button" className={role === 'oficina' ? 'selected' : ''} onClick={() => setLiveRole('oficina')}>
-          Oficina
-        </button>
-        <button type="button" className={role === 'cliente' ? 'selected' : ''} onClick={() => setLiveRole('cliente')}>
-          Cliente
-        </button>
-      </div>
+      {allowedRoles.length > 1 && (
+        <div className="role-toggle">
+          <button type="button" className={role === 'oficina' ? 'selected' : ''} onClick={() => setLiveRole('oficina')}>
+            Oficina
+          </button>
+          <button type="button" className={role === 'cliente' ? 'selected' : ''} onClick={() => setLiveRole('cliente')}>
+            Cliente
+          </button>
+        </div>
+      )}
 
       <div className="video-grid">
         <div>
@@ -238,14 +265,14 @@ export default function LiveSession({ order, socket, busy, onStartLive, onEndLiv
       <p className="muted">{liveStatus}</p>
 
       <div className="action-row">
-        {role === 'oficina' && (
+        {canBroadcast && (
           <button type="button" onClick={startBroadcast} disabled={busy || broadcasting || !socket}>
             <Video size={18} />
             Iniciar live
           </button>
         )}
 
-        {role === 'cliente' && (
+        {canWatch && (
           <button type="button" onClick={joinAsClient} disabled={busy || watching || !active || !socket}>
             <Radio size={18} />
             Entrar na live

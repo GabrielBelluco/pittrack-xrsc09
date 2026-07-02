@@ -50,7 +50,12 @@ flowchart LR
 
 ### Frontend
 
-Aplicação React com Vite. Ela consulta a API por HTTP e mantém uma conexão Socket.IO para receber eventos em tempo real.
+Aplicação React com Vite. Ela possui duas visões:
+
+- `/oficina`: tela operacional usada pelo mecânico/atendente para avançar etapas, enviar mídia e iniciar live.
+- `/cliente/:id`: tela do cliente para acompanhar status, aprovar orçamento, ver mídias e entrar na live.
+
+As duas visões consultam a API por HTTP e mantêm conexão Socket.IO para receber eventos em tempo real.
 
 ### Backend/API
 
@@ -118,7 +123,6 @@ sequenceDiagram
   F->>A: POST /orders
   A->>DB: Salva cliente, veículo, ordem e status inicial
   A->>R: XADD SERVICE_ORDER_CREATED
-  W->>R: XREADGROUP
   W->>R: XREADGROUP e logs de apoio distribuído
   U->>F: Avança etapa manualmente
   F->>A: POST /orders/:id/status

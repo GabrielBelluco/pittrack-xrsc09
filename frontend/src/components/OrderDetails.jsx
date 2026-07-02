@@ -15,7 +15,8 @@ export default function OrderDetails({
   onReplacePart,
   onUploadMedia,
   onStartLive,
-  onEndLive
+  onEndLive,
+  clientLink
 }) {
   if (!order) {
     return (
@@ -36,7 +37,14 @@ export default function OrderDetails({
           <h2>{order.vehicle.plate} · {order.vehicle.model}</h2>
           <p className="muted">{order.customer.name} · {order.customer.phone}</p>
         </div>
-        <span className="large-status">{order.status}</span>
+        <div className="header-actions">
+          {clientLink && (
+            <a className="link-button" href={clientLink} target="_blank" rel="noreferrer">
+              Visão do cliente
+            </a>
+          )}
+          <span className="large-status">{order.status}</span>
+        </div>
       </div>
 
       <div className="complaint-box">
@@ -60,6 +68,8 @@ export default function OrderDetails({
             order={order}
             socket={socket}
             busy={busy}
+            defaultRole="oficina"
+            allowedRoles={['oficina']}
             onStartLive={onStartLive}
             onEndLive={onEndLive}
           />
