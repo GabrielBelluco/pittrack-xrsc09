@@ -7,6 +7,11 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   postgres:
     image: postgres:16-alpine
@@ -19,12 +24,16 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-pittrack}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pittrack} -d ${POSTGRES_DB:-pittrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  backend:
+  ordem-servico-api:
     build:
-      context: ./backend
-    container_name: pittrack-backend
+      context: ./ordem-servico-api
+    container_name: pittrack-ordem-servico-api
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     environment:
@@ -32,12 +41,71 @@ services:
       PORT: 3001
       DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
-      REDIS_NOTIFICATIONS_CHANNEL: ${REDIS_NOTIFICATIONS_CHANNEL:-live-notifications}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-OSEventos}
+      TIMELINE_PROJECTION_URL: ${TIMELINE_PROJECTION_URL:-http://projection:3002}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  projection:
+    build:
+      context: ./projection
+    container_name: pittrack-projection
+    ports:
+      - "${PROJECTION_PORT:-3002}:3002"
+    environment:
+      PORT: 3002
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-OSEventos}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ordem-servico-state-manager:
+    build:
+      context: ./ordem-servico-state-manager
+    container_name: pittrack-ordem-servico-state-manager
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-OSEventos}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  media-service:
+    build:
+      context: ./media-service
+    container_name: pittrack-media-service
+    ports:
+      - "${MEDIA_PORT:-3003}:3003"
+    environment:
+      PORT: 3003
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/pittrack-media}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - media-uploads:/app/src/uploads
+
+  mongo:
+    image: mongo:7
+    container_name: pittrack-mongo
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
@@ -47,64 +115,12 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      VITE_MEDIA_URL: ${VITE_MEDIA_URL:-http://localhost:3003}
     depends_on:
-      - backend
-
-  diagnostic-worker:
-    build:
-      context: ./backend
-    container_name: pittrack-diagnostic-worker
-    command: ["npm", "run", "worker:diagnostic"]
-    environment:
-      SERVICE_NAME: diagnostic-worker
-      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
-    depends_on:
-      - postgres
-      - redis
-
-  parts-worker:
-    build:
-      context: ./backend
-    container_name: pittrack-parts-worker
-    command: ["npm", "run", "worker:parts"]
-    environment:
-      SERVICE_NAME: parts-worker
-      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
-    depends_on:
-      - postgres
-      - redis
-
-  repair-worker:
-    build:
-      context: ./backend
-    container_name: pittrack-repair-worker
-    command: ["npm", "run", "worker:repair"]
-    environment:
-      SERVICE_NAME: repair-worker
-      DATABASE_URL: ${DATABASE_URL:-postgres://pittrack:pittrack@postgres:5432/pittrack}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
-    depends_on:
-      - postgres
-      - redis
-
-  notification-worker:
-    build:
-      context: ./backend
-    container_name: pittrack-notification-worker
-    command: ["npm", "run", "worker:notification"]
-    environment:
-      SERVICE_NAME: notification-worker
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      REDIS_STREAM_KEY: ${REDIS_STREAM_KEY:-pittrack:events}
-      REDIS_NOTIFICATIONS_CHANNEL: ${REDIS_NOTIFICATIONS_CHANNEL:-live-notifications}
-    depends_on:
-      - redis
+      - ordem-servico-api
 
 volumes:
   postgres-data:
   redis-data:
+  mongo-data:
+  media-uploads:

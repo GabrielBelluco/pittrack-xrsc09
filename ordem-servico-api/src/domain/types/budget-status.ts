@@ -1,0 +1,6 @@
+export enum BudgetStatus {
+  DRAFT = 'DRAFT',
+  WAITING_APPROVAL = 'WAITING_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
+}

@@ -111,7 +111,7 @@ Funciona como log de eventos importantes. A API publica eventos como `SERVICE_OR
 Ver API e workers:
 
 ```powershell
-docker compose logs -f backend diagnostic-worker parts-worker repair-worker notification-worker
+docker compose logs -f ordem-servico-api diagnostic-worker parts-worker repair-worker notification-worker
 ```
 
 Ver o stream Redis:

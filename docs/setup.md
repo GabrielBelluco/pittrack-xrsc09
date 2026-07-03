@@ -88,7 +88,7 @@ curl -X POST http://localhost:3001/orders/1/videos \
 Ver a troca de mensagens entre API e workers:
 
 ```bash
-docker compose logs -f backend diagnostic-worker parts-worker repair-worker notification-worker
+docker compose logs -f ordem-servico-api diagnostic-worker parts-worker repair-worker notification-worker
 ```
 
 Ver apenas Redis e banco:

@@ -1,4 +1,5 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+export const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || 'http://localhost:3003';
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -50,11 +51,19 @@ export function createSampleOrder() {
 }
 
 export function createBudget(orderId) {
+  const budgetId = crypto.randomUUID();
   return request(`/orders/${orderId}/budget`, {
     method: 'POST',
     body: JSON.stringify({
-      description: 'Diagnóstico, troca de pastilhas, revisão de fluido e teste final.',
-      amount: 1180
+      budgetId,
+      items: [{
+        id: crypto.randomUUID(),
+        description: 'Diagnóstico, troca de pastilhas, revisão de fluido e teste final.',
+        quantity: 1,
+        unitPrice: 1180,
+        totalPrice: 1180
+      }],
+      totalAmount: 1180
     })
   });
 }
@@ -66,24 +75,71 @@ export function approveBudget(orderId) {
   });
 }
 
-export function addPart(orderId) {
-  return request(`/orders/${orderId}/parts`, {
+export async function uploadMedia(orderId, { step, type, description, file }) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('orderId', orderId);
+  formData.append('step', step);
+  formData.append('type', type);
+  if (description) formData.append('description', description);
+
+  const response = await fetch(`${MEDIA_URL}/media/upload`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const payload = response.headers.get('content-type')?.includes('application/json')
+      ? await response.json()
+      : null;
+    throw new Error((payload && payload.error) || `Erro HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchMedia(orderId) {
+  const response = await fetch(`${MEDIA_URL}/media/${orderId}`);
+  if (!response.ok) {
+    throw new Error(`Erro HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+export function startDiagnosis(orderId) {
+  return request(`/orders/${orderId}/diagnosis/start`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function registerDiagnosis(orderId, { description, rootCause, observations } = {}) {
+  return request(`/orders/${orderId}/diagnosis`, {
     method: 'POST',
     body: JSON.stringify({
-      name: 'Kit de pastilhas dianteiras',
-      quantity: 1
+      description: description || 'Diagnóstico padrão',
+      rootCause,
+      observations
     })
   });
 }
 
-export function addVideo(orderId) {
-  return request(`/orders/${orderId}/videos`, {
+export function rejectBudget(orderId, reason) {
+  return request(`/orders/${orderId}/budget/reject`, {
     method: 'POST',
-    body: JSON.stringify({
-      step: 'Diagnóstico',
-      type: 'video',
-      url: 'https://example.com/videos/diagnostico-freio.mp4',
-      description: 'Registro do ruído identificado durante o teste de frenagem.'
-    })
+    body: JSON.stringify({ reason: reason || '' })
   });
+}
+
+export function startRepair(orderId) {
+  return request(`/orders/${orderId}/repair/start`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function startFinalTest(orderId) {
+  return request(`/orders/${orderId}/repair/final-test`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function finishMaintenance(orderId) {
+  return request(`/orders/${orderId}/repair/finish`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function cancelOrder(orderId) {
+  return request(`/orders/${orderId}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Cancelado pelo usuário' }) });
 }
