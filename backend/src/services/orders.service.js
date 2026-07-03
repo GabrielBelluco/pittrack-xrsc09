@@ -1,6 +1,13 @@
 const { query, withTransaction } = require('../db');
+const {
+  WORKFLOW_STATUS,
+  assertCurrentStatus,
+  assertMediaAllowed,
+  validateStatusTransition,
+  WorkflowError
+} = require('./workflow');
 
-const DEFAULT_STATUS = 'Aguardando Atendimento';
+const DEFAULT_STATUS = WORKFLOW_STATUS.WAITING_SERVICE;
 
 function mapOrder(row) {
   if (!row) {
@@ -79,12 +86,13 @@ async function getOrderSummary(id) {
 }
 
 async function getOrderById(id) {
-  const [order, timeline, budgets, parts, media] = await Promise.all([
+  const [order, timeline, budgets, parts, media, activeLive] = await Promise.all([
     getOrderSummary(id),
     getTimeline(id),
     getBudgets(id),
     getParts(id),
-    getMedia(id)
+    getMedia(id),
+    getActiveLiveSession(id)
   ]);
 
   if (!order) {
@@ -96,7 +104,8 @@ async function getOrderById(id) {
     timeline,
     budgets,
     parts,
-    media
+    media,
+    activeLive
   };
 }
 
@@ -169,19 +178,25 @@ async function createOrder(data) {
 
 async function updateOrderStatus(id, status, note, createdBy = 'api') {
   const updatedId = await withTransaction(async (client) => {
-    const result = await client.query(
+    const currentOrder = await client.query(
+      'SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+
+    if (currentOrder.rowCount === 0) {
+      return null;
+    }
+
+    validateStatusTransition(currentOrder.rows[0].status, status);
+
+    await client.query(
       `
         UPDATE service_orders
         SET status = $1, updated_at = NOW()
         WHERE id = $2
-        RETURNING *
       `,
       [status, id]
     );
-
-    if (result.rowCount === 0) {
-      return null;
-    }
 
     await client.query(
       `
@@ -203,11 +218,13 @@ async function updateOrderStatus(id, status, note, createdBy = 'api') {
 
 async function createBudget(id, data) {
   const budget = await withTransaction(async (client) => {
-    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
     if (order.rowCount === 0) {
       return null;
     }
+
+    assertCurrentStatus('Gerar orçamento', order.rows[0].status, [WORKFLOW_STATUS.DIAGNOSIS]);
 
     const budgetResult = await client.query(
       `
@@ -228,7 +245,7 @@ async function createBudget(id, data) {
         SET status = $1, updated_at = NOW()
         WHERE id = $2
       `,
-      ['Aguardando Aprovação', id]
+      [WORKFLOW_STATUS.WAITING_APPROVAL, id]
     );
 
     await client.query(
@@ -240,10 +257,10 @@ async function createBudget(id, data) {
       `,
       [
         id,
-        'Orçamento Gerado',
+        WORKFLOW_STATUS.BUDGET_CREATED,
         `Orçamento #${budgetResult.rows[0].id} criado.`,
         data.createdBy || 'api',
-        'Aguardando Aprovação',
+        WORKFLOW_STATUS.WAITING_APPROVAL,
         'Cliente deve aprovar ou rejeitar o orçamento.'
       ]
     );
@@ -263,6 +280,17 @@ async function createBudget(id, data) {
 
 async function approveBudget(id, data = {}) {
   const budget = await withTransaction(async (client) => {
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
+
+    if (order.rowCount === 0) {
+      return null;
+    }
+
+    assertCurrentStatus('Aprovar orçamento', order.rows[0].status, [
+      WORKFLOW_STATUS.BUDGET_CREATED,
+      WORKFLOW_STATUS.WAITING_APPROVAL
+    ]);
+
     const budgetId = data.budgetId;
     const budgetResult = await client.query(
       `
@@ -294,7 +322,7 @@ async function approveBudget(id, data = {}) {
         SET status = $1, updated_at = NOW()
         WHERE id = $2
       `,
-      ['Aprovado', id]
+      [WORKFLOW_STATUS.APPROVED, id]
     );
 
     await client.query(
@@ -302,7 +330,7 @@ async function approveBudget(id, data = {}) {
         INSERT INTO status_history (service_order_id, status, note, created_by)
         VALUES ($1, $2, $3, $4)
       `,
-      [id, 'Aprovado', 'Orçamento aprovado pelo cliente.', data.createdBy || 'api']
+      [id, WORKFLOW_STATUS.APPROVED, 'Orçamento aprovado pelo cliente.', data.createdBy || 'api']
     );
 
     return budgetResult.rows[0];
@@ -320,11 +348,13 @@ async function approveBudget(id, data = {}) {
 
 async function addPart(id, data) {
   const part = await withTransaction(async (client) => {
-    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
     if (order.rowCount === 0) {
       return null;
     }
+
+    assertCurrentStatus('Solicitar peça', order.rows[0].status, [WORKFLOW_STATUS.REPAIR]);
 
     const partResult = await client.query(
       `
@@ -341,7 +371,7 @@ async function addPart(id, data) {
         SET status = $1, updated_at = NOW()
         WHERE id = $2
       `,
-      ['Aguardando Peça', id]
+      [WORKFLOW_STATUS.WAITING_PART, id]
     );
 
     await client.query(
@@ -349,7 +379,7 @@ async function addPart(id, data) {
         INSERT INTO status_history (service_order_id, status, note, created_by)
         VALUES ($1, $2, $3, $4)
       `,
-      [id, 'Aguardando Peça', `Peça solicitada: ${partResult.rows[0].name}.`, data.createdBy || 'api']
+      [id, WORKFLOW_STATUS.WAITING_PART, `Peça solicitada: ${partResult.rows[0].name}.`, data.createdBy || 'api']
     );
 
     return partResult.rows[0];
@@ -421,24 +451,38 @@ async function recordPartReplacement(partId, description = 'Peça substituída n
 
 async function addMedia(id, data) {
   const media = await withTransaction(async (client) => {
-    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
 
     if (order.rowCount === 0) {
       return null;
     }
 
+    const currentStep = assertMediaAllowed(order.rows[0].status);
+
     const result = await client.query(
       `
-        INSERT INTO media_records (service_order_id, step, type, url, description)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO media_records (
+          service_order_id,
+          step,
+          type,
+          url,
+          description,
+          original_name,
+          mime_type,
+          size_bytes
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `,
       [
         id,
-        data.step || 'Diagnóstico',
+        currentStep,
         data.type || 'video',
         data.url || 'https://example.com/videos/diagnostico-demo.mp4',
-        data.description || 'Registro visual enviado pela oficina.'
+        data.description || 'Registro visual enviado pela oficina.',
+        data.originalName || null,
+        data.mimeType || null,
+        data.sizeBytes || null
       ]
     );
 
@@ -453,6 +497,164 @@ async function addMedia(id, data) {
     order: await getOrderById(id),
     media
   };
+}
+
+async function replacePart(id, partId, data = {}) {
+  const replacement = await withTransaction(async (client) => {
+    const order = await client.query('SELECT id, status FROM service_orders WHERE id = $1 FOR UPDATE', [id]);
+
+    if (order.rowCount === 0) {
+      return null;
+    }
+
+    assertCurrentStatus('Substituir peça', order.rows[0].status, [WORKFLOW_STATUS.WAITING_PART]);
+
+    const partResult = await client.query(
+      'SELECT * FROM parts WHERE id = $1 AND service_order_id = $2 FOR UPDATE',
+      [partId, id]
+    );
+
+    if (partResult.rowCount === 0) {
+      return null;
+    }
+
+    const part = partResult.rows[0];
+
+    if (part.status === 'Substituída') {
+      throw new WorkflowError('Esta peça já foi substituída.');
+    }
+
+    const replacementResult = await client.query(
+      `
+        INSERT INTO part_replacements (service_order_id, part_id, description)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `,
+      [id, part.id, data.description || 'Peça substituída manualmente pela oficina.']
+    );
+
+    await client.query(
+      `
+        UPDATE parts
+        SET status = $1, updated_at = NOW()
+        WHERE id = $2
+      `,
+      ['Substituída', part.id]
+    );
+
+    await client.query(
+      `
+        UPDATE service_orders
+        SET status = $1, updated_at = NOW()
+        WHERE id = $2
+      `,
+      [WORKFLOW_STATUS.REPAIR, id]
+    );
+
+    await client.query(
+      `
+        INSERT INTO status_history (service_order_id, status, note, created_by)
+        VALUES ($1, $2, $3, $4)
+      `,
+      [id, WORKFLOW_STATUS.REPAIR, 'Peça recebida e reparo retomado.', data.createdBy || 'oficina']
+    );
+
+    return {
+      part: {
+        ...part,
+        status: 'Substituída'
+      },
+      replacement: replacementResult.rows[0]
+    };
+  });
+
+  if (!replacement) {
+    return null;
+  }
+
+  return {
+    order: await getOrderById(id),
+    part: replacement.part,
+    replacement: replacement.replacement
+  };
+}
+
+async function startLiveSession(id, data = {}) {
+  const live = await withTransaction(async (client) => {
+    const order = await client.query('SELECT id FROM service_orders WHERE id = $1', [id]);
+
+    if (order.rowCount === 0) {
+      return null;
+    }
+
+    await client.query(
+      `
+        UPDATE live_sessions
+        SET status = 'ended', ended_at = NOW()
+        WHERE service_order_id = $1
+          AND status = 'active'
+      `,
+      [id]
+    );
+
+    const result = await client.query(
+      `
+        INSERT INTO live_sessions (service_order_id, status, started_by)
+        VALUES ($1, 'active', $2)
+        RETURNING *
+      `,
+      [id, data.startedBy || 'oficina']
+    );
+
+    return result.rows[0];
+  });
+
+  if (!live) {
+    return null;
+  }
+
+  return {
+    order: await getOrderById(id),
+    live
+  };
+}
+
+async function endLiveSession(id) {
+  const result = await query(
+    `
+      UPDATE live_sessions
+      SET status = 'ended', ended_at = NOW()
+      WHERE service_order_id = $1
+        AND status = 'active'
+      RETURNING *
+    `,
+    [id]
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return {
+    order: await getOrderById(id),
+    live: result.rows[0]
+  };
+}
+
+async function getActiveLiveSession(id) {
+  const result = await query(
+    `
+      SELECT *
+      FROM live_sessions
+      WHERE service_order_id = $1
+        AND status = 'active'
+      ORDER BY started_at DESC, id DESC
+      LIMIT 1
+    `,
+    [id]
+  );
+
+  return result.rows[0] || null;
 }
 
 async function getStatusHistory(id) {
@@ -512,7 +714,7 @@ async function getMedia(id) {
 }
 
 async function getTimeline(id) {
-  const [statuses, budgets, parts, media, replacements] = await Promise.all([
+  const [statuses, budgets, parts, media, replacements, lives] = await Promise.all([
     getStatusHistory(id),
     getBudgets(id),
     getParts(id),
@@ -524,6 +726,15 @@ async function getTimeline(id) {
         JOIN parts p ON p.id = pr.part_id
         WHERE pr.service_order_id = $1
         ORDER BY pr.replaced_at ASC, pr.id ASC
+      `,
+      [id]
+    ).then((result) => result.rows),
+    query(
+      `
+        SELECT *
+        FROM live_sessions
+        WHERE service_order_id = $1
+        ORDER BY started_at ASC, id ASC
       `,
       [id]
     ).then((result) => result.rows)
@@ -563,12 +774,22 @@ async function getTimeline(id) {
       timestamp: item.created_at,
       url: item.url
     })),
+    ...lives.map((item) => ({
+      id: `live-${item.id}`,
+      type: 'live',
+      title: item.status === 'active' ? 'Live iniciada' : 'Live encerrada',
+      description: item.status === 'active'
+        ? 'Transmissão ao vivo disponível para o cliente.'
+        : 'Transmissão ao vivo encerrada pela oficina.',
+      actor: item.started_by,
+      timestamp: item.ended_at || item.started_at
+    })),
     ...replacements.map((item) => ({
       id: `replacement-${item.id}`,
       type: 'part_replacement',
       title: `Peça substituída: ${item.part_name}`,
       description: item.description,
-      actor: 'parts-worker',
+      actor: 'oficina',
       timestamp: item.replaced_at
     }))
   ];
@@ -584,8 +805,12 @@ module.exports = {
   createBudget,
   approveBudget,
   addPart,
+  replacePart,
   updatePartStatus,
   recordPartReplacement,
   addMedia,
+  startLiveSession,
+  endLiveSession,
+  getActiveLiveSession,
   getTimeline
 };

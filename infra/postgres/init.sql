@@ -71,7 +71,19 @@ CREATE TABLE IF NOT EXISTS media_records (
   type VARCHAR(20) NOT NULL CHECK (type IN ('video', 'foto', 'imagem')),
   url TEXT NOT NULL,
   description TEXT,
+  original_name VARCHAR(255),
+  mime_type VARCHAR(120),
+  size_bytes INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS live_sessions (
+  id SERIAL PRIMARY KEY,
+  service_order_id INTEGER NOT NULL REFERENCES service_orders(id) ON DELETE CASCADE,
+  status VARCHAR(40) NOT NULL DEFAULT 'active',
+  started_by VARCHAR(120) NOT NULL DEFAULT 'oficina',
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status);
@@ -79,3 +91,4 @@ CREATE INDEX IF NOT EXISTS idx_status_history_order ON status_history(service_or
 CREATE INDEX IF NOT EXISTS idx_budgets_order ON budgets(service_order_id);
 CREATE INDEX IF NOT EXISTS idx_parts_order ON parts(service_order_id);
 CREATE INDEX IF NOT EXISTS idx_media_records_order ON media_records(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_live_sessions_order ON live_sessions(service_order_id, status, started_at);

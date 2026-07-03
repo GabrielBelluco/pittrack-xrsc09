@@ -1,12 +1,14 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-export const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || 'http://localhost:3003';
 
 async function request(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
+    headers: isFormData
+      ? options.headers
+      : {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        },
     ...options
   });
 
@@ -51,19 +53,11 @@ export function createSampleOrder() {
 }
 
 export function createBudget(orderId) {
-  const budgetId = crypto.randomUUID();
   return request(`/orders/${orderId}/budget`, {
     method: 'POST',
     body: JSON.stringify({
-      budgetId,
-      items: [{
-        id: crypto.randomUUID(),
-        description: 'Diagnóstico, troca de pastilhas, revisão de fluido e teste final.',
-        quantity: 1,
-        unitPrice: 1180,
-        totalPrice: 1180
-      }],
-      totalAmount: 1180
+      description: 'Diagnóstico, troca de pastilhas, revisão de fluido e teste final.',
+      amount: 1180
     })
   });
 }
@@ -75,71 +69,62 @@ export function approveBudget(orderId) {
   });
 }
 
-export async function uploadMedia(orderId, { step, type, description, file }) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('orderId', orderId);
-  formData.append('step', step);
-  formData.append('type', type);
-  if (description) formData.append('description', description);
-
-  const response = await fetch(`${MEDIA_URL}/media/upload`, {
-    method: 'POST',
-    body: formData
-  });
-
-  if (!response.ok) {
-    const payload = response.headers.get('content-type')?.includes('application/json')
-      ? await response.json()
-      : null;
-    throw new Error((payload && payload.error) || `Erro HTTP ${response.status}`);
-  }
-
-  return response.json();
-}
-
-export async function fetchMedia(orderId) {
-  const response = await fetch(`${MEDIA_URL}/media/${orderId}`);
-  if (!response.ok) {
-    throw new Error(`Erro HTTP ${response.status}`);
-  }
-  return response.json();
-}
-
-export function startDiagnosis(orderId) {
-  return request(`/orders/${orderId}/diagnosis/start`, { method: 'POST', body: JSON.stringify({}) });
-}
-
-export function registerDiagnosis(orderId, { description, rootCause, observations } = {}) {
-  return request(`/orders/${orderId}/diagnosis`, {
+export function updateOrderStatus(orderId, status, note, eventType) {
+  return request(`/orders/${orderId}/status`, {
     method: 'POST',
     body: JSON.stringify({
-      description: description || 'Diagnóstico padrão',
-      rootCause,
-      observations
+      status,
+      note,
+      eventType,
+      createdBy: 'oficina'
     })
   });
 }
 
-export function rejectBudget(orderId, reason) {
-  return request(`/orders/${orderId}/budget/reject`, {
+export function addPart(orderId) {
+  return request(`/orders/${orderId}/parts`, {
     method: 'POST',
-    body: JSON.stringify({ reason: reason || '' })
+    body: JSON.stringify({
+      name: 'Kit de pastilhas dianteiras',
+      quantity: 1
+    })
   });
 }
 
-export function startRepair(orderId) {
-  return request(`/orders/${orderId}/repair/start`, { method: 'POST', body: JSON.stringify({}) });
+export function replacePart(orderId, partId) {
+  return request(`/orders/${orderId}/parts/${partId}/replace`, {
+    method: 'POST',
+    body: JSON.stringify({
+      description: 'Peça substituída pela oficina durante o reparo.',
+      createdBy: 'oficina'
+    })
+  });
 }
 
-export function startFinalTest(orderId) {
-  return request(`/orders/${orderId}/repair/final-test`, { method: 'POST', body: JSON.stringify({}) });
+export function uploadMedia(orderId, { file, step, description }) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('step', step);
+  formData.append('description', description || '');
+
+  return request(`/orders/${orderId}/media`, {
+    method: 'POST',
+    body: formData
+  });
 }
 
-export function finishMaintenance(orderId) {
-  return request(`/orders/${orderId}/repair/finish`, { method: 'POST', body: JSON.stringify({}) });
+export function startLive(orderId) {
+  return request(`/orders/${orderId}/live/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      startedBy: 'oficina'
+    })
+  });
 }
 
-export function cancelOrder(orderId) {
-  return request(`/orders/${orderId}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Cancelado pelo usuário' }) });
+export function endLive(orderId) {
+  return request(`/orders/${orderId}/live/end`, {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
 }

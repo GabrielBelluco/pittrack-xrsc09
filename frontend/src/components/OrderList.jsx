@@ -1,6 +1,6 @@
-import { Plus, RefreshCw, User, Wrench } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 
-export default function OrderList({ orders, selectedId, loading, role, onRoleChange, onCreate, onRefresh, onSelect }) {
+export default function OrderList({ orders, selectedId, loading, onCreate, onRefresh, onSelect }) {
   return (
     <aside className="panel orders-panel">
       <div className="panel-header">
@@ -13,31 +13,10 @@ export default function OrderList({ orders, selectedId, loading, role, onRoleCha
         </button>
       </div>
 
-      <div className="role-toggle">
-        <button
-          type="button"
-          className={`role-option ${role === 'mecanico' ? 'active' : ''}`}
-          onClick={() => onRoleChange('mecanico')}
-        >
-          <Wrench size={16} />
-          Mecânico
-        </button>
-        <button
-          type="button"
-          className={`role-option ${role === 'cliente' ? 'active' : ''}`}
-          onClick={() => onRoleChange('cliente')}
-        >
-          <User size={16} />
-          Cliente
-        </button>
-      </div>
-
-      {role === 'mecanico' && (
-        <button className="primary-button" type="button" onClick={onCreate}>
-          <Plus size={18} />
-          Criar ordem exemplo
-        </button>
-      )}
+      <button className="primary-button" type="button" onClick={onCreate}>
+        <Plus size={18} />
+        Criar ordem exemplo
+      </button>
 
       <div className="order-list" aria-live="polite">
         {loading && <p className="muted">Carregando ordens...</p>}

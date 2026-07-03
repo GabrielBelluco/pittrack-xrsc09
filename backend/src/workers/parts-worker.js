@@ -32,24 +32,14 @@ async function main() {
       await ordersService.updatePartStatus(partId, 'Reservada', code);
       await sleep(1500);
 
-      const replacement = await ordersService.recordPartReplacement(
-        partId,
-        `Peça reservada com código ${code} e substituída no veículo.`
-      );
-
-      if (!replacement) {
-        console.log(`[parts-worker] Peça #${partId} não encontrada. Evento ignorado.`);
-        return;
-      }
-
-      await publishEvent(EVENT_TYPES.PART_REPLACED, {
+      await publishEvent(EVENT_TYPES.PART_TRACKING_UPDATED, {
         orderId,
         partId,
         trackingCode: code,
-        message: `Peça #${partId} substituída na ordem #${orderId}.`
+        message: `Peça #${partId} reservada com rastreio ${code}.`
       });
 
-      console.log(`[parts-worker] Peça #${partId} substituída na ordem #${orderId}.`);
+      console.log(`[parts-worker] Peça #${partId} reservada. Substituição aguardando ação manual da oficina.`);
     }
   });
 }

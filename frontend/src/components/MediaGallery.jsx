@@ -1,59 +1,63 @@
-import { useEffect, useState } from 'react';
-import { MEDIA_URL, fetchMedia } from '../services/api.js';
+import { API_URL } from '../services/api.js';
 
-export default function MediaGallery({ orderId, media: _legacyMedia, budgets }) {
-  const [mediaList, setMediaList] = useState([]);
-
-  useEffect(() => {
-    if (!orderId) return;
-    fetchMedia(orderId)
-      .then(setMediaList)
-      .catch(() => setMediaList([]));
-  }, [orderId]);
-
-  const photos = mediaList.filter((m) => m.type === 'photo');
-  const videos = mediaList.filter((m) => m.type === 'video');
-
-  function mediaUrl(item) {
-    return `${MEDIA_URL}/media/file/${item.filename}`;
+function mediaUrl(url) {
+  if (!url) {
+    return '';
   }
 
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+
+  return `${API_URL}${url}`;
+}
+
+export default function MediaGallery({ media, parts, budgets }) {
   return (
     <div className="side-stack">
       <div className="section-block">
         <div className="section-title">
-          <h3>Fotos</h3>
-          <span>{photos.length}</span>
+          <h3>Mídias</h3>
+          <span>{media.length}</span>
         </div>
 
         <div className="compact-list">
-          {photos.length === 0 && <p className="empty-state">Nenhuma foto.</p>}
+          {media.length === 0 && <p className="empty-state">Sem vídeos ou fotos.</p>}
 
-          {photos.map((item) => (
-            <a className="media-row" key={item.id} href={mediaUrl(item)} target="_blank" rel="noreferrer">
-              <strong>{item.step}</strong>
-              {item.description && <span>{item.description}</span>}
-              <small>{item.originalName} ({(item.size / 1024).toFixed(0)} KB)</small>
-            </a>
-          ))}
+          {media.map((item) => {
+            const url = mediaUrl(item.url);
+
+            return (
+              <article className="media-row" key={item.id}>
+                <strong>{item.step}</strong>
+                {item.type === 'video' ? (
+                  <video controls src={url} />
+                ) : (
+                  <img src={url} alt={item.description || item.step} />
+                )}
+                <span>{item.description}</span>
+                <small>{item.original_name || item.url}</small>
+              </article>
+            );
+          })}
         </div>
       </div>
 
       <div className="section-block">
         <div className="section-title">
-          <h3>Vídeos</h3>
-          <span>{videos.length}</span>
+          <h3>Peças</h3>
+          <span>{parts.length}</span>
         </div>
 
         <div className="compact-list">
-          {videos.length === 0 && <p className="empty-state">Nenhum vídeo.</p>}
+          {parts.length === 0 && <p className="empty-state">Nenhuma peça registrada.</p>}
 
-          {videos.map((item) => (
-            <a className="media-row" key={item.id} href={mediaUrl(item)} target="_blank" rel="noreferrer">
-              <strong>{item.step}</strong>
-              {item.description && <span>{item.description}</span>}
-              <small>{item.originalName} ({(item.size / 1024).toFixed(0)} KB)</small>
-            </a>
+          {parts.map((part) => (
+            <div className="data-row" key={part.id}>
+              <strong>{part.name}</strong>
+              <span>{part.quantity} unidade(s) · {part.status}</span>
+              {part.tracking_code && <small>{part.tracking_code}</small>}
+            </div>
           ))}
         </div>
       </div>
