@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceOrderStatus {
+  CREATED
+  DIAGNOSIS_IN_PROGRESS
+  WAITING_APPROVAL
+  APPROVED
+  REPAIR_IN_PROGRESS
+  FINAL_TEST
+  COMPLETED
+  CANCELLED
+}
+
+enum BudgetStatus {
+  DRAFT
+  WAITING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model Customer {
+  id      String         @id @default(cuid())
+  name    String
+  phone   String
+  email   String?
+  orders  ServiceOrder[]
+}
+
+model Vehicle {
+  id      String         @id @default(cuid())
+  plate   String
+  brand   String         @default("")
+  model   String
+  year    Int
+  mileage Int?
+  orders  ServiceOrder[]
+}
+
+model ServiceOrder {
+  id          String              @id
+  status      ServiceOrderStatus
+  customer    Customer            @relation(fields: [customerId], references: [id])
+  customerId  String
+  vehicle     Vehicle             @relation(fields: [vehicleId], references: [id])
+  vehicleId   String
+  complaint   String?
+  assignedTo  String?
+  diagnosis   Diagnosis?
+  budget      ServiceOrderBudget?
+  events      Event[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  completedAt DateTime?
+  cancelledAt DateTime?
+  version     Int                 @default(1)
+  @@map("service_orders")
+}
+
+model Event {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       ServiceOrder @relation(fields: [orderId], references: [id])
+  eventType   String
+  title       String
+  description String?
+  metadata    Json?
+  occurredAt  DateTime
+  @@map("events")
+}
+
+model Diagnosis {
+  id           String       @id @default(cuid())
+  orderId      String       @unique
+  order        ServiceOrder @relation(fields: [orderId], references: [id])
+  description  String
+  rootCause    String?
+  observations String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  @@map("diagnoses")
+}
+
+model ServiceOrderBudget {
+  id          String       @id
+  status      BudgetStatus
+  totalAmount Float
+  approvedAt  DateTime?
+  items       BudgetItem[]
+  orderId     String       @unique
+  order       ServiceOrder @relation(fields: [orderId], references: [id])
+  createdAt   DateTime     @default(now())
+  @@map("budgets")
+}
+
+model BudgetItem {
+  id          String             @id @default(cuid())
+  budgetId    String
+  budget      ServiceOrderBudget @relation(fields: [budgetId], references: [id])
+  description String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  @@map("budget_items")
+}
