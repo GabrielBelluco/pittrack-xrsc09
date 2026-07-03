@@ -1,29 +1,27 @@
 {
-  "name": "pittrack-backend",
+  "name": "pittrack-ordem-servico-api",
   "version": "0.1.0",
   "description": "API e workers distribuídos do PitTrack",
-  "main": "src/server.js",
+  "main": "src/server.ts",
   "scripts": {
-    "start": "node src/server.js",
-    "worker:diagnostic": "node src/workers/diagnostic-worker.js",
-    "worker:parts": "node src/workers/parts-worker.js",
-    "worker:repair": "node src/workers/repair-worker.js",
-    "worker:notification": "node src/workers/notification-worker.js"
+    "start": "tsx src/server.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "ioredis": "^5.4.2",
     "pg": "^8.13.1",
-    "socket.io": "^4.8.1"
+    "prisma": "^6.19.3",
+    "socket.io": "^4.8.1",
+    "tsx": "^4.22.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.0",
     "@types/pg": "^8.20.0",
-    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }
 }

@@ -1,4 +1,4 @@
-import { ServiceOrderStatus } from './enums';
+import { ServiceOrderStatus } from '../types/service-order-status';
 import { CustomerSnapshot } from './customer-snapshot';
 import { VehicleSnapshot } from './vehicle-snapshot';
 import { Diagnosis } from './diagnosis';
@@ -10,6 +10,8 @@ export interface ServiceOrder {
   status: ServiceOrderStatus;
   customer: CustomerSnapshot;
   vehicle: VehicleSnapshot;
+  complaint?: string;
+  assignedTo?: string;
   diagnosis?: Diagnosis;
   budget?: Budget;
   timeline: TimelineEvent[];

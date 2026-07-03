@@ -1,4 +1,4 @@
-import { ServiceOrderEventType } from './enums';
+import { ServiceOrderEventType } from '../types/service-order-event-type';
 
 export interface TimelineEvent {
   id: string;

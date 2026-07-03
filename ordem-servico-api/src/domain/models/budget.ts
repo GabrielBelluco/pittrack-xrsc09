@@ -1,4 +1,4 @@
-import { BudgetStatus } from './enums';
+import { BudgetStatus } from '../types/budget-status';
 import { BudgetItem } from './budget-item';
 
 export interface Budget {

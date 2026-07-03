@@ -33,7 +33,7 @@ async function startServer() {
   app.get('/health', (req, res) => {
     res.json({
       status: 'ok',
-      service: 'pittrack-backend',
+      service: 'pittrack-ordem-servico-api',
       timestamp: new Date().toISOString()
     });
   });
@@ -70,7 +70,7 @@ async function startServer() {
   });
 
   server.listen(PORT, () => {
-    console.log(`[api] PitTrack backend rodando na porta ${PORT}`);
+    console.log(`[api] PitTrack API rodando na porta ${PORT}`);
   });
 }
 
